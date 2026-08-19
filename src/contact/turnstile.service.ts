@@ -48,15 +48,19 @@ export class TurnstileService {
       );
     }
 
-    const expectedHostname = this.config.get<string>(
-      'TURNSTILE_EXPECTED_HOSTNAME',
-    );
+    const expectedHostnames = (
+      this.config.get<string>('TURNSTILE_EXPECTED_HOSTNAME') ?? ''
+    )
+      .split(',')
+      .map((hostname) => hostname.trim())
+      .filter(Boolean);
     const expectedAction = this.config.getOrThrow<string>(
       'TURNSTILE_EXPECTED_ACTION',
     );
     if (
       !result.success ||
-      (expectedHostname && result.hostname !== expectedHostname) ||
+      (expectedHostnames.length > 0 &&
+        (!result.hostname || !expectedHostnames.includes(result.hostname))) ||
       result.action !== expectedAction
     ) {
       throw new BadRequestException(ApiMessages.contact.botRejected);
