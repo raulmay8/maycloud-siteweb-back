@@ -11,16 +11,34 @@ const prisma = new PrismaClient({
 });
 
 async function main(): Promise<void> {
-  const usersRead = await prisma.permission.upsert({
-    where: { key: 'users.read' },
-    update: {},
-    create: { key: 'users.read', description: 'Consultar usuarios' },
-  });
-  const wildcard = await prisma.permission.upsert({
-    where: { key: '*' },
-    update: {},
-    create: { key: '*', description: 'Acceso administrativo completo' },
-  });
+  const permissionDefinitions = [
+    ['*', 'Acceso administrativo completo'],
+    ['users.read', 'Consultar usuarios'],
+    ['users.update', 'Activar o desactivar usuarios'],
+    ['users.assign_roles', 'Asignar roles a usuarios'],
+    ['roles.read', 'Consultar roles'],
+    ['roles.create', 'Crear roles'],
+    ['roles.update', 'Actualizar roles'],
+    ['roles.delete', 'Eliminar roles'],
+    ['roles.assign_permissions', 'Asignar permisos a roles'],
+    ['permissions.read', 'Consultar permisos'],
+    ['permissions.create', 'Crear permisos'],
+    ['permissions.update', 'Actualizar permisos'],
+    ['permissions.delete', 'Eliminar permisos'],
+    ['menus.read', 'Consultar menús'],
+    ['menus.create', 'Crear menús'],
+    ['menus.update', 'Actualizar menús'],
+    ['menus.delete', 'Eliminar menús'],
+  ] as const;
+  const permissions = new Map<string, string>();
+  for (const [key, description] of permissionDefinitions) {
+    const permission = await prisma.permission.upsert({
+      where: { key },
+      update: { description },
+      create: { key, description },
+    });
+    permissions.set(key, permission.id);
+  }
   await prisma.role.upsert({
     where: { name: 'user' },
     update: {},
@@ -32,13 +50,69 @@ async function main(): Promise<void> {
     create: { name: 'admin', description: 'Administrador del sistema' },
   });
 
-  for (const permissionId of [usersRead.id, wildcard.id]) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: { roleId: adminRole.id, permissionId },
+  const wildcardId = permissions.get('*');
+  if (!wildcardId)
+    throw new Error('No fue posible crear el permiso administrativo');
+  await prisma.rolePermission.upsert({
+    where: {
+      roleId_permissionId: { roleId: adminRole.id, permissionId: wildcardId },
+    },
+    update: {},
+    create: { roleId: adminRole.id, permissionId: wildcardId },
+  });
+
+  const administration = await prisma.menu.upsert({
+    where: { key: 'administration' },
+    update: { label: 'Administración', icon: 'settings', sortOrder: 100 },
+    create: {
+      key: 'administration',
+      label: 'Administración',
+      icon: 'settings',
+      sortOrder: 100,
+    },
+  });
+  const menuDefinitions = [
+    ['users', 'Usuarios', '/admin/users', 'users', 10, 'users.read'],
+    ['roles', 'Roles', '/admin/roles', 'shield', 20, 'roles.read'],
+    [
+      'permissions',
+      'Permisos',
+      '/admin/permissions',
+      'key',
+      30,
+      'permissions.read',
+    ],
+    ['menus', 'Menús', '/admin/menus', 'menu', 40, 'menus.read'],
+  ] as const;
+  for (const [
+    key,
+    label,
+    route,
+    icon,
+    sortOrder,
+    permissionKey,
+  ] of menuDefinitions) {
+    const permissionId = permissions.get(permissionKey);
+    if (!permissionId) throw new Error(`Permiso faltante: ${permissionKey}`);
+    await prisma.menu.upsert({
+      where: { key },
+      update: {
+        label,
+        route,
+        icon,
+        sortOrder,
+        parentId: administration.id,
+        permissionId,
       },
-      update: {},
-      create: { roleId: adminRole.id, permissionId },
+      create: {
+        key,
+        label,
+        route,
+        icon,
+        sortOrder,
+        parentId: administration.id,
+        permissionId,
+      },
     });
   }
 

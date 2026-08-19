@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +17,8 @@ interface HttpErrorBody {
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ApiExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<Request>();
@@ -30,6 +33,14 @@ export class ApiExceptionFilter implements ExceptionFilter {
         ? exception.getResponse()
         : ApiMessages.internalError;
     const parsed = this.parseBody(body, status);
+    if (!(exception instanceof HttpException)) {
+      const detail =
+        exception instanceof Error ? exception.stack : String(exception);
+      this.logger.error(
+        `${request.method} ${request.originalUrl} failed [${requestId}]`,
+        detail,
+      );
+    }
     response.setHeader('x-request-id', requestId);
     response.status(status).json({
       success: false,

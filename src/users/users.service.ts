@@ -1,4 +1,9 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 
 const userWithAuthorization = {
@@ -75,5 +80,45 @@ export class UsersService {
         roles: { select: { role: { select: { name: true } } } },
       },
     });
+  }
+
+  async setActive(id: string, isActive: boolean, actorId: string) {
+    if (id === actorId && !isActive) {
+      throw new BadRequestException('No puedes desactivar tu propia cuenta');
+    }
+    await this.requireUser(id);
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive },
+      select: { id: true, email: true, isActive: true },
+    });
+  }
+
+  async assignRoles(userId: string, roleIds: string[], actorId: string) {
+    if (userId === actorId) {
+      throw new BadRequestException('No puedes reemplazar tus propios roles');
+    }
+    await this.requireUser(userId);
+    const count = await this.prisma.role.count({
+      where: { id: { in: roleIds } },
+    });
+    if (count !== roleIds.length) {
+      throw new BadRequestException('Uno o más roles no existen');
+    }
+    await this.prisma.$transaction([
+      this.prisma.userRole.deleteMany({ where: { userId } }),
+      this.prisma.userRole.createMany({
+        data: roleIds.map((roleId) => ({ userId, roleId })),
+      }),
+    ]);
+    return this.findByIdForAuthentication(userId);
+  }
+
+  private async requireUser(id: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
   }
 }

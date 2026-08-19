@@ -39,6 +39,7 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
   roles        UserRole[]
+  refreshTokens RefreshToken[]
 
   @@map("users")
 }
@@ -62,8 +63,44 @@ model Permission {
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   roles       RolePermission[]
+  menus       Menu[]
 
   @@map("permissions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Menu {
+  id           String      @id @default(uuid()) @db.Uuid
+  key          String      @unique @db.VarChar(100)
+  label        String      @db.VarChar(120)
+  route        String?     @db.VarChar(255)
+  icon         String?     @db.VarChar(80)
+  sortOrder    Int         @default(0) @map("sort_order")
+  isActive     Boolean     @default(true) @map("is_active")
+  parentId     String?     @map("parent_id") @db.Uuid
+  permissionId String?     @map("permission_id") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  parent       Menu?       @relation("MenuHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Menu[]      @relation("MenuHierarchy")
+  permission   Permission? @relation(fields: [permissionId], references: [id], onDelete: SetNull)
+
+  @@index([parentId, sortOrder])
+  @@index([permissionId])
+  @@map("menus")
 }
 
 model UserRole {
