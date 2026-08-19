@@ -13,4 +13,11 @@ export const envValidationSchema = Joi.object({
     .required(),
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
+  TURNSTILE_ENABLED: Joi.boolean().default(false),
+  TURNSTILE_SECRET_KEY: Joi.string().allow('').when('TURNSTILE_ENABLED', {
+    is: true,
+    then: Joi.string().required(),
+  }),
+  TURNSTILE_EXPECTED_HOSTNAME: Joi.string().allow('').default(''),
+  TURNSTILE_EXPECTED_ACTION: Joi.string().default('contact'),
 });

@@ -22,7 +22,12 @@ describe('AppController (e2e)', () => {
 
   it('/ (GET)', async () => {
     const response = await request(app.getHttpServer()).get('/').expect(200);
-    expect(response.body).toEqual(
+    const body = response.body as {
+      success: boolean;
+      data: { status: string; service: string };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data).toEqual(
       expect.objectContaining({
         status: 'ok',
         service: 'maycloud-siteweb-back',

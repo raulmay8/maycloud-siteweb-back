@@ -1,10 +1,32 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum ContactMessageStatus {
+  NEW
+  READ
+  ARCHIVED
+}
+
+model ContactMessage {
+  id        String               @id @default(uuid()) @db.Uuid
+  name      String               @db.VarChar(120)
+  email     String               @db.VarChar(255)
+  subject   String               @db.VarChar(160)
+  message   String               @db.Text
+  status    ContactMessageStatus @default(NEW)
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@map("contact_messages")
 }
 
 model User {
