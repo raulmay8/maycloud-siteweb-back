@@ -14,6 +14,7 @@ import { ContactModule } from './contact/contact.module';
 import { PrismaModule } from './database/prisma.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ServerModule } from './server/server.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AppService } from './app.service';
     AdminModule,
     ContactModule,
     AnalyticsModule,
+    ServerModule,
   ],
   controllers: [AppController],
   providers: [

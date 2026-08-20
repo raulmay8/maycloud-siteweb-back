@@ -33,6 +33,7 @@ async function main(): Promise<void> {
     ['contact_messages.read', 'Consultar mensajes de contacto'],
     ['contact_messages.update', 'Marcar mensajes de contacto como leídos'],
     ['analytics.read', 'Consultar métricas del sitio'],
+    ['server.overview.read', 'Consultar el estado general del servidor'],
   ] as const;
   const permissions = new Map<string, string>();
   for (const [key, description] of permissionDefinitions) {
@@ -93,6 +94,14 @@ async function main(): Promise<void> {
       'chart-no-axes-combined',
       60,
       'analytics.read',
+    ],
+    [
+      'server-overview',
+      'Servidor',
+      '/admin/server',
+      'server',
+      70,
+      'server.overview.read',
     ],
   ] as const;
   for (const [
