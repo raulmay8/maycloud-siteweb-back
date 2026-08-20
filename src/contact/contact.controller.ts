@@ -1,22 +1,34 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { Public } from '../common/auth/public.decorator';
+import { RequirePermissions } from '../common/auth/permissions.decorator';
 import { ApiMessages } from '../common/messages/api.messages';
 import { ApiErrorResponse } from '../common/responses/api-response.model';
 import { ResponseMessage } from '../common/responses/response-message.decorator';
 import { ContactService } from './contact.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
+import { ListContactMessagesQueryDto } from './dto/list-contact-messages-query.dto';
 
 @ApiTags('Contacto')
 @Controller('contact')
 export class ContactController {
   constructor(private readonly contactService: ContactService) {}
+
+  @Get()
+  @ApiBearerAuth()
+  @RequirePermissions('contact_messages.read')
+  @ApiOkResponse({ description: 'Listado paginado de mensajes de contacto' })
+  findAll(@Query() query: ListContactMessagesQueryDto) {
+    return this.contactService.findAll(query);
+  }
 
   @Public()
   @Post()

@@ -7,3 +7,7 @@ export class PrismaClient {
     return Promise.resolve();
   }
 }
+
+export const AnalyticsEventType = {
+  CONTACT_FORM_INTERACTION: 'CONTACT_FORM_INTERACTION',
+} as const;

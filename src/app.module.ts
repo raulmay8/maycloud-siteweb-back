@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
@@ -26,6 +27,7 @@ import { AppService } from './app.service';
     AuthModule,
     AdminModule,
     ContactModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

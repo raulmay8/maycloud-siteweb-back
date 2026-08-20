@@ -29,6 +29,7 @@ async function main(): Promise<void> {
     ['menus.create', 'Crear menús'],
     ['menus.update', 'Actualizar menús'],
     ['menus.delete', 'Eliminar menús'],
+    ['contact_messages.read', 'Consultar mensajes de contacto'],
   ] as const;
   const permissions = new Map<string, string>();
   for (const [key, description] of permissionDefinitions) {
@@ -83,6 +84,14 @@ async function main(): Promise<void> {
       'permissions.read',
     ],
     ['menus', 'Menús', '/admin/menus', 'menu', 40, 'menus.read'],
+    [
+      'contact-messages',
+      'Mensajes de contacto',
+      '/admin/contact-messages',
+      'mail',
+      50,
+      'contact_messages.read',
+    ],
   ] as const;
   for (const [
     key,

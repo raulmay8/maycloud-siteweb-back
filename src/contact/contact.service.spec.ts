@@ -6,18 +6,57 @@ import { TurnstileService } from './turnstile.service';
 describe('ContactService', () => {
   let service: ContactService;
   const create = jest.fn();
+  const findMany = jest.fn();
+  const count = jest.fn();
+  const transaction = jest.fn();
   const verify = jest.fn();
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    transaction.mockImplementation(async (operations: Promise<unknown>[]) =>
+      Promise.all(operations),
+    );
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ContactService,
-        { provide: PrismaService, useValue: { contactMessage: { create } } },
+        {
+          provide: PrismaService,
+          useValue: {
+            contactMessage: { create, findMany, count },
+            $transaction: transaction,
+          },
+        },
         { provide: TurnstileService, useValue: { verify } },
       ],
     }).compile();
     service = module.get(ContactService);
+  });
+
+  it('returns contact messages ordered and paginated', async () => {
+    const messages = [{ id: 'contact-id', subject: 'Nuevo proyecto' }];
+    findMany.mockResolvedValue(messages);
+    count.mockResolvedValue(21);
+
+    await expect(service.findAll({ page: 2, pageSize: 10 })).resolves.toEqual({
+      items: messages,
+      pagination: { page: 2, pageSize: 10, total: 21, totalPages: 3 },
+    });
+    expect(findMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      skip: 10,
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        subject: true,
+        message: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    expect(transaction).toHaveBeenCalledTimes(1);
   });
 
   it('validates and stores a contact message', async () => {
