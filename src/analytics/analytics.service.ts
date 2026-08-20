@@ -6,6 +6,7 @@ import { AnalyticsEventType } from '../generated/prisma/client';
 import { ANALYTICS_SESSION_DURATION_MS } from './analytics.constants';
 import type { CreateAnalyticsEventDto } from './dto/create-analytics-event.dto';
 import type { CreateAnalyticsSessionDto } from './dto/create-analytics-session.dto';
+import type { AnalyticsSummaryQueryDto } from './dto/analytics-summary-query.dto';
 
 interface AnalyticsSessionIdentity {
   sessionToken: string;
@@ -13,9 +14,85 @@ interface AnalyticsSessionIdentity {
   isNewSession: boolean;
 }
 
+export interface AnalyticsDailyRow {
+  date: string;
+  visits: number;
+  interactions: number;
+}
+
+export interface AnalyticsSummary {
+  period: { from: string; to: string; timezone: 'UTC' };
+  totals: {
+    visits: number;
+    contactFormInteractions: number;
+    interactionRate: number;
+  };
+  series: AnalyticsDailyRow[];
+}
+
+const DAY_MS = 86_400_000;
+const MAX_SUMMARY_DAYS = 366;
+
 @Injectable()
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async summary(query: AnalyticsSummaryQueryDto): Promise<AnalyticsSummary> {
+    const period = this.resolvePeriod(query);
+    const series = await this.prisma.$queryRawUnsafe<AnalyticsDailyRow[]>(
+      `
+        SELECT
+          to_char(days.day, 'YYYY-MM-DD') AS "date",
+          COALESCE(s.visits, 0)::int AS "visits",
+          COALESCE(e.interactions, 0)::int AS "interactions"
+        FROM generate_series(
+          $1::timestamptz,
+          $2::timestamptz - interval '1 day',
+          interval '1 day'
+        ) AS days(day)
+        LEFT JOIN (
+          SELECT
+            (started_at AT TIME ZONE 'UTC')::date AS day,
+            COUNT(*)::int AS visits
+          FROM analytics_sessions
+          WHERE started_at >= $1::timestamptz
+            AND started_at < $2::timestamptz
+          GROUP BY day
+        ) AS s ON s.day = days.day::date
+        LEFT JOIN (
+          SELECT
+            (occurred_at AT TIME ZONE 'UTC')::date AS day,
+            COUNT(*)::int AS interactions
+          FROM analytics_events
+          WHERE type = 'CONTACT_FORM_INTERACTION'
+            AND occurred_at >= $1::timestamptz
+            AND occurred_at < $2::timestamptz
+          GROUP BY day
+        ) AS e ON e.day = days.day::date
+        ORDER BY days.day ASC
+      `,
+      period.fromDate,
+      period.toExclusive,
+    );
+    const visits = series.reduce((total, day) => total + day.visits, 0);
+    const contactFormInteractions = series.reduce(
+      (total, day) => total + day.interactions,
+      0,
+    );
+
+    return {
+      period: { from: period.from, to: period.to, timezone: 'UTC' },
+      totals: {
+        visits,
+        contactFormInteractions,
+        interactionRate:
+          visits === 0
+            ? 0
+            : Number(((contactFormInteractions / visits) * 100).toFixed(2)),
+      },
+      series,
+    };
+  }
 
   async startSession(
     dto: CreateAnalyticsSessionDto,
@@ -123,5 +200,38 @@ export class AnalyticsService {
         value,
       )
     );
+  }
+
+  private resolvePeriod(query: AnalyticsSummaryQueryDto) {
+    const today = this.dateOnly(new Date());
+    const to = query.to ?? today;
+    const toDate = new Date(`${to}T00:00:00.000Z`);
+    const defaultFromDate = new Date(toDate.getTime() - 29 * DAY_MS);
+    const from = query.from ?? this.dateOnly(defaultFromDate);
+    const fromDate = new Date(`${from}T00:00:00.000Z`);
+    const days =
+      Math.round((toDate.getTime() - fromDate.getTime()) / DAY_MS) + 1;
+
+    if (days < 1) {
+      throw new BadRequestException(
+        'La fecha inicial debe ser anterior o igual a la fecha final.',
+      );
+    }
+    if (days > MAX_SUMMARY_DAYS) {
+      throw new BadRequestException(
+        `El rango no puede superar ${MAX_SUMMARY_DAYS} días.`,
+      );
+    }
+
+    return {
+      from,
+      to,
+      fromDate,
+      toExclusive: new Date(toDate.getTime() + DAY_MS),
+    };
+  }
+
+  private dateOnly(date: Date): string {
+    return date.toISOString().slice(0, 10);
   }
 }

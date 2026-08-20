@@ -17,6 +17,7 @@ describe('AnalyticsService', () => {
   const sessionUpdate = jest.fn();
   const eventUpsert = jest.fn();
   const transaction = jest.fn();
+  const queryRawUnsafe = jest.fn();
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -43,6 +44,7 @@ describe('AnalyticsService', () => {
             },
             analyticsEvent: { upsert: eventUpsert },
             $transaction: transaction,
+            $queryRawUnsafe: queryRawUnsafe,
           },
         },
       ],
@@ -52,6 +54,38 @@ describe('AnalyticsService', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it('returns totals and a daily series for the requested period', async () => {
+    const series = [
+      { date: '2026-08-18', visits: 5, interactions: 1 },
+      { date: '2026-08-19', visits: 3, interactions: 2 },
+    ];
+    queryRawUnsafe.mockResolvedValue(series);
+
+    await expect(
+      service.summary({ from: '2026-08-18', to: '2026-08-19' }),
+    ).resolves.toEqual({
+      period: { from: '2026-08-18', to: '2026-08-19', timezone: 'UTC' },
+      totals: {
+        visits: 8,
+        contactFormInteractions: 3,
+        interactionRate: 37.5,
+      },
+      series,
+    });
+    expect(queryRawUnsafe).toHaveBeenCalledWith(
+      expect.any(String),
+      new Date('2026-08-18T00:00:00.000Z'),
+      new Date('2026-08-20T00:00:00.000Z'),
+    );
+  });
+
+  it('rejects inverted summary date ranges', async () => {
+    await expect(
+      service.summary({ from: '2026-08-20', to: '2026-08-19' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(queryRawUnsafe).not.toHaveBeenCalled();
   });
 
   it('creates a new anonymous session when there is no active cookie', async () => {
