@@ -1,13 +1,16 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { Public } from '../common/auth/public.decorator';
+import { RequirePermissions } from '../common/auth/permissions.decorator';
 import { ApiMessages } from '../common/messages/api.messages';
 import { ApiErrorResponse } from '../common/responses/api-response.model';
 import { ResponseMessage } from '../common/responses/response-message.decorator';
@@ -18,6 +21,7 @@ import {
   ANALYTICS_VISITOR_DURATION_MS,
 } from './analytics.constants';
 import { AnalyticsService } from './analytics.service';
+import { AnalyticsSummaryQueryDto } from './dto/analytics-summary-query.dto';
 import { CreateAnalyticsEventDto } from './dto/create-analytics-event.dto';
 import { CreateAnalyticsSessionDto } from './dto/create-analytics-session.dto';
 
@@ -28,6 +32,15 @@ export class AnalyticsController {
     private readonly analyticsService: AnalyticsService,
     private readonly configService: ConfigService,
   ) {}
+
+  @Get('summary')
+  @ApiBearerAuth()
+  @RequirePermissions('analytics.read')
+  @ApiOkResponse({ description: 'Resumen y serie diaria de métricas' })
+  @ApiBadRequestResponse({ type: ApiErrorResponse })
+  summary(@Query() query: AnalyticsSummaryQueryDto) {
+    return this.analyticsService.summary(query);
+  }
 
   @Public()
   @Post('session')
