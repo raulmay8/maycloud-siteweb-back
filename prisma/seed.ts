@@ -14,6 +14,7 @@ async function main(): Promise<void> {
   const permissionDefinitions = [
     ['*', 'Acceso administrativo completo'],
     ['users.read', 'Consultar usuarios'],
+    ['users.create', 'Crear usuarios'],
     ['users.update', 'Activar o desactivar usuarios'],
     ['users.assign_roles', 'Asignar roles a usuarios'],
     ['roles.read', 'Consultar roles'],
@@ -30,6 +31,7 @@ async function main(): Promise<void> {
     ['menus.update', 'Actualizar menús'],
     ['menus.delete', 'Eliminar menús'],
     ['contact_messages.read', 'Consultar mensajes de contacto'],
+    ['contact_messages.update', 'Marcar mensajes de contacto como leídos'],
     ['analytics.read', 'Consultar métricas del sitio'],
   ] as const;
   const permissions = new Map<string, string>();
@@ -76,15 +78,6 @@ async function main(): Promise<void> {
   const menuDefinitions = [
     ['users', 'Usuarios', '/admin/users', 'users', 10, 'users.read'],
     ['roles', 'Roles', '/admin/roles', 'shield', 20, 'roles.read'],
-    [
-      'permissions',
-      'Permisos',
-      '/admin/permissions',
-      'key',
-      30,
-      'permissions.read',
-    ],
-    ['menus', 'Menús', '/admin/menus', 'menu', 40, 'menus.read'],
     [
       'contact-messages',
       'Mensajes de contacto',

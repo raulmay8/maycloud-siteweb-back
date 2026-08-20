@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -16,6 +26,7 @@ import { ResponseMessage } from '../common/responses/response-message.decorator'
 import { ContactService } from './contact.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import { ListContactMessagesQueryDto } from './dto/list-contact-messages-query.dto';
+import { UpdateContactMessageStatusDto } from './dto/update-contact-message-status.dto';
 
 @ApiTags('Contacto')
 @Controller('contact')
@@ -28,6 +39,18 @@ export class ContactController {
   @ApiOkResponse({ description: 'Listado paginado de mensajes de contacto' })
   findAll(@Query() query: ListContactMessagesQueryDto) {
     return this.contactService.findAll(query);
+  }
+
+  @Patch(':id/status')
+  @ApiBearerAuth()
+  @RequirePermissions('contact_messages.update')
+  @ResponseMessage('Estado del mensaje actualizado correctamente')
+  @ApiOkResponse({ description: 'Mensaje marcado como nuevo o leído' })
+  updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateContactMessageStatusDto,
+  ) {
+    return this.contactService.updateStatus(id, dto.status);
   }
 
   @Public()
