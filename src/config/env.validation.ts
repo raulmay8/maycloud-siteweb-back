@@ -9,6 +9,7 @@ export const envValidationSchema = Joi.object({
   FRONTEND_URL: Joi.string().uri().required(),
   CORS_ALLOWED_ORIGINS: Joi.string().optional(),
   SWAGGER_ENABLED: Joi.boolean().default(false),
+  SERVER_HOST_ROOT: Joi.string().allow('').default(''),
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),

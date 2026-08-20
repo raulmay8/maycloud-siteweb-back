@@ -1,11 +1,12 @@
 import { platform } from 'node:os';
+import { ConfigService } from '@nestjs/config';
 import { ServerOverviewService } from './server-overview.service';
 
 describe('ServerOverviewService', () => {
   let service: ServerOverviewService;
 
   beforeEach(() => {
-    service = new ServerOverviewService();
+    service = new ServerOverviewService(new ConfigService());
   });
 
   it('returns current read-only system information', async () => {
