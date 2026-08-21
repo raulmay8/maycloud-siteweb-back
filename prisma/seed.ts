@@ -35,6 +35,7 @@ async function main(): Promise<void> {
     ['analytics.read', 'Consultar métricas del sitio'],
     ['server.overview.read', 'Consultar el estado general del servidor'],
     ['server.containers.read', 'Consultar contenedores y métricas de Docker'],
+    ['server.containers.logs', 'Consultar logs recientes de contenedores'],
   ] as const;
   const permissions = new Map<string, string>();
   for (const [key, description] of permissionDefinitions) {

@@ -9,6 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import { request } from 'node:http';
 import type {
   DockerContainerDetail,
+  DockerContainerAudit,
+  DockerContainerLog,
   DockerContainerStats,
   DockerContainerSummary,
   DockerNetwork,
@@ -19,6 +21,7 @@ import type {
 const REQUEST_TIMEOUT_MS = 5_000;
 const LIST_CACHE_MS = 3_000;
 const OVERVIEW_CACHE_MS = 15_000;
+const MAX_DOCKER_RESPONSE_BYTES = 5 * 1024 * 1024;
 
 type DockerObject = Record<string, any>;
 
@@ -155,6 +158,67 @@ export class DockerService {
     };
   }
 
+  async getContainerLogs(
+    id: string,
+    tail: number,
+    sinceMinutes: number,
+  ): Promise<DockerContainerLog[]> {
+    const since = Math.floor(Date.now() / 1_000) - sinceMinutes * 60;
+    const path =
+      `/containers/${encodeURIComponent(id)}/logs` +
+      `?stdout=true&stderr=true&timestamps=true&tail=${tail}&since=${since}`;
+    const body = await this.dockerRequestBuffer(path);
+    return this.decodeLogFrames(body).flatMap(({ stream, text }) =>
+      text
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => {
+          const match = /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/.exec(line);
+          return {
+            timestamp: match?.[1] ?? null,
+            stream,
+            message: match?.[2] ?? line,
+          };
+        }),
+    );
+  }
+
+  async getContainerAudit(
+    id: string,
+    sinceMinutes: number,
+  ): Promise<DockerContainerAudit> {
+    const container = await this.getContainer(id);
+    const untilSeconds = Math.floor(Date.now() / 1_000);
+    const sinceSeconds = untilSeconds - sinceMinutes * 60;
+    const filters = encodeURIComponent(
+      JSON.stringify({ container: [container.id], type: ['container'] }),
+    );
+    const body = await this.dockerRequestBuffer(
+      `/events?since=${sinceSeconds}&until=${untilSeconds}&filters=${filters}`,
+    );
+    const events = body
+      .toString('utf8')
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as DockerObject)
+      .map((event) => ({
+        action: String(event.Action ?? event.status ?? 'unknown'),
+        timestamp: new Date(
+          this.number(event.timeNano)
+            ? this.number(event.timeNano) / 1_000_000
+            : this.number(event.time) * 1_000,
+        ).toISOString(),
+      }))
+      .sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+    return {
+      id: container.id,
+      since: new Date(sinceSeconds * 1_000).toISOString(),
+      until: new Date(untilSeconds * 1_000).toISOString(),
+      events,
+      collectedAt: new Date().toISOString(),
+    };
+  }
+
   getOverview(): Promise<DockerOverview> {
     return this.cached('overview', OVERVIEW_CACHE_MS, async () => {
       const [version, info, disk] = await Promise.all([
@@ -256,7 +320,22 @@ export class DockerService {
   }
 
   private dockerRequest<T>(path: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
+    return this.dockerRequestBuffer(path).then((body) => {
+      try {
+        return JSON.parse(body.toString('utf8')) as T;
+      } catch (error) {
+        throw new BadGatewayException(
+          'Docker devolvió una respuesta inválida',
+          {
+            cause: error,
+          },
+        );
+      }
+    });
+  }
+
+  private dockerRequestBuffer(path: string): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
       const req = request(
         {
           socketPath: this.socketPath,
@@ -266,9 +345,27 @@ export class DockerService {
         },
         (response) => {
           const chunks: Buffer[] = [];
-          response.on('data', (chunk: Buffer) => chunks.push(chunk));
+          let size = 0;
+          response.on('data', (chunk: Buffer) => {
+            size += chunk.length;
+            if (size > MAX_DOCKER_RESPONSE_BYTES) {
+              response.destroy(new Error('Docker response exceeds limit'));
+              return;
+            }
+            chunks.push(chunk);
+          });
+          response.on('error', (error) =>
+            reject(
+              new BadGatewayException(
+                'La respuesta de Docker excede el límite permitido',
+                {
+                  cause: error,
+                },
+              ),
+            ),
+          );
           response.on('end', () => {
-            const body = Buffer.concat(chunks).toString('utf8');
+            const body = Buffer.concat(chunks);
             if (response.statusCode === 404)
               return reject(new NotFoundException('Contenedor no encontrado'));
             if (!response.statusCode || response.statusCode >= 400) {
@@ -276,16 +373,7 @@ export class DockerService {
                 new BadGatewayException('Docker no pudo completar la consulta'),
               );
             }
-            try {
-              resolve(JSON.parse(body) as T);
-            } catch (error) {
-              reject(
-                new BadGatewayException(
-                  'Docker devolvió una respuesta inválida',
-                  { cause: error },
-                ),
-              );
-            }
+            resolve(body);
           });
         },
       );
@@ -300,6 +388,34 @@ export class DockerService {
       );
       req.end();
     });
+  }
+
+  private decodeLogFrames(
+    body: Buffer,
+  ): Array<{ stream: DockerContainerLog['stream']; text: string }> {
+    const frames: Array<{
+      stream: DockerContainerLog['stream'];
+      text: string;
+    }> = [];
+    let offset = 0;
+    while (offset + 8 <= body.length) {
+      const streamType = body[offset];
+      const isHeader =
+        (streamType === 1 || streamType === 2) &&
+        body[offset + 1] === 0 &&
+        body[offset + 2] === 0 &&
+        body[offset + 3] === 0;
+      if (!isHeader) break;
+      const length = body.readUInt32BE(offset + 4);
+      if (offset + 8 + length > body.length) break;
+      frames.push({
+        stream: streamType === 2 ? 'stderr' : 'stdout',
+        text: body.subarray(offset + 8, offset + 8 + length).toString('utf8'),
+      });
+      offset += 8 + length;
+    }
+    if (frames.length && offset === body.length) return frames;
+    return [{ stream: 'combined', text: body.toString('utf8') }];
   }
 
   private cached<T>(

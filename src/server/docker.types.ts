@@ -89,6 +89,23 @@ export interface DockerContainerStats {
   collectedAt: string;
 }
 
+export interface DockerContainerLog {
+  timestamp: string | null;
+  stream: 'stdout' | 'stderr' | 'combined';
+  message: string;
+}
+
+export interface DockerContainerAudit {
+  id: string;
+  since: string;
+  until: string;
+  events: Array<{
+    action: string;
+    timestamp: string;
+  }>;
+  collectedAt: string;
+}
+
 export interface DockerPort {
   privatePort: number;
   publicPort: number | null;

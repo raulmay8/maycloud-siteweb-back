@@ -1,7 +1,11 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { RequirePermissions } from '../common/auth/permissions.decorator';
 import { DockerService } from './docker.service';
+import {
+  ContainerAuditQueryDto,
+  ContainerLogsQueryDto,
+} from './dto/container-activity-query.dto';
 import { ServerOverviewService } from './server-overview.service';
 
 @ApiTags('Servidor')
@@ -48,5 +52,31 @@ export class ServerController {
   @ApiOkResponse({ description: 'Métricas actuales de un contenedor' })
   containerStats(@Param('id') id: string) {
     return this.dockerService.getContainerStats(id);
+  }
+
+  @Get('containers/:id/logs')
+  @RequirePermissions('server.containers.logs')
+  @ApiOkResponse({ description: 'Logs recientes y limitados de un contenedor' })
+  containerLogs(
+    @Param('id') id: string,
+    @Query() query: ContainerLogsQueryDto,
+  ) {
+    return this.dockerService.getContainerLogs(
+      id,
+      query.tail,
+      query.sinceMinutes,
+    );
+  }
+
+  @Get('containers/:id/audit')
+  @RequirePermissions('server.containers.read')
+  @ApiOkResponse({
+    description: 'Eventos recientes del ciclo de vida de un contenedor',
+  })
+  containerAudit(
+    @Param('id') id: string,
+    @Query() query: ContainerAuditQueryDto,
+  ) {
+    return this.dockerService.getContainerAudit(id, query.sinceMinutes);
   }
 }

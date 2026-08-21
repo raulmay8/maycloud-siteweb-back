@@ -12,6 +12,8 @@ describe('ServerController', () => {
   const getContainers = jest.fn();
   const getContainer = jest.fn();
   const getContainerStats = jest.fn();
+  const getContainerLogs = jest.fn();
+  const getContainerAudit = jest.fn();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -25,6 +27,8 @@ describe('ServerController', () => {
             getContainers,
             getContainer,
             getContainerStats,
+            getContainerLogs,
+            getContainerAudit,
           },
         },
       ],
@@ -65,4 +69,28 @@ describe('ServerController', () => {
       ]);
     },
   );
+
+  it('requires the container logs permission for logs', () => {
+    const reflector = new Reflector();
+    const handler = Object.getOwnPropertyDescriptor(
+      ServerController.prototype,
+      'containerLogs',
+    )?.value as (...args: unknown[]) => unknown;
+
+    expect(reflector.get<string[]>(PERMISSIONS_KEY, handler)).toEqual([
+      'server.containers.logs',
+    ]);
+  });
+
+  it('requires the container read permission for audit', () => {
+    const reflector = new Reflector();
+    const handler = Object.getOwnPropertyDescriptor(
+      ServerController.prototype,
+      'containerAudit',
+    )?.value as (...args: unknown[]) => unknown;
+
+    expect(reflector.get<string[]>(PERMISSIONS_KEY, handler)).toEqual([
+      'server.containers.read',
+    ]);
+  });
 });
