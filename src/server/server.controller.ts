@@ -2,10 +2,12 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { RequirePermissions } from '../common/auth/permissions.decorator';
 import { DockerService } from './docker.service';
+import { DirectoryBrowserService } from './directory-browser.service';
 import {
   ContainerAuditQueryDto,
   ContainerLogsQueryDto,
 } from './dto/container-activity-query.dto';
+import { ListDirectoriesQueryDto } from './dto/list-directories-query.dto';
 import { ServerOverviewService } from './server-overview.service';
 
 @ApiTags('Servidor')
@@ -15,6 +17,7 @@ export class ServerController {
   constructor(
     private readonly overviewService: ServerOverviewService,
     private readonly dockerService: DockerService,
+    private readonly directoryBrowser: DirectoryBrowserService,
   ) {}
 
   @Get('overview')
@@ -78,5 +81,12 @@ export class ServerController {
     @Query() query: ContainerAuditQueryDto,
   ) {
     return this.dockerService.getContainerAudit(id, query.sinceMinutes);
+  }
+
+  @Get('directories')
+  @RequirePermissions('server.directories.read')
+  @ApiOkResponse({ description: 'Carpetas de la raíz operativa configurada' })
+  directories(@Query() query: ListDirectoriesQueryDto) {
+    return this.directoryBrowser.list(query.path);
   }
 }

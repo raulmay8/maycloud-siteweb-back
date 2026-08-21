@@ -1,6 +1,7 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../common/auth/auth.constants';
+import { DirectoryBrowserService } from './directory-browser.service';
 import { DockerService } from './docker.service';
 import { ServerOverviewService } from './server-overview.service';
 import { ServerController } from './server.controller';
@@ -14,6 +15,7 @@ describe('ServerController', () => {
   const getContainerStats = jest.fn();
   const getContainerLogs = jest.fn();
   const getContainerAudit = jest.fn();
+  const listDirectories = jest.fn();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -30,6 +32,10 @@ describe('ServerController', () => {
             getContainerLogs,
             getContainerAudit,
           },
+        },
+        {
+          provide: DirectoryBrowserService,
+          useValue: { list: listDirectories },
         },
       ],
     }).compile();
@@ -91,6 +97,18 @@ describe('ServerController', () => {
 
     expect(reflector.get<string[]>(PERMISSIONS_KEY, handler)).toEqual([
       'server.containers.read',
+    ]);
+  });
+
+  it('requires the directory read permission for the explorer', () => {
+    const reflector = new Reflector();
+    const handler = Object.getOwnPropertyDescriptor(
+      ServerController.prototype,
+      'directories',
+    )?.value as (...args: unknown[]) => unknown;
+
+    expect(reflector.get<string[]>(PERMISSIONS_KEY, handler)).toEqual([
+      'server.directories.read',
     ]);
   });
 });
