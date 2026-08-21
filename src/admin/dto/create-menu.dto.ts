@@ -53,15 +53,23 @@ export class CreateMenuDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: 'Envía null para colocar el menú en la raíz',
+  })
   @IsOptional()
   @IsUUID('4')
-  parentId?: string;
+  parentId?: string | null;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: 'Envía null para mostrarlo sin requerir un permiso',
+  })
   @IsOptional()
   @IsUUID('4')
-  permissionId?: string;
+  permissionId?: string | null;
 }
 
 export class UpdateMenuDto extends PartialType(CreateMenuDto) {}

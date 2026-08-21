@@ -79,6 +79,7 @@ async function main(): Promise<void> {
   const menuDefinitions = [
     ['users', 'Usuarios', '/admin/users', 'users', 10, 'users.read'],
     ['roles', 'Roles', '/admin/roles', 'shield', 20, 'roles.read'],
+    ['menus', 'Menús', '/admin/menus', 'menu', 30, 'menus.read'],
     [
       'contact-messages',
       'Mensajes de contacto',

@@ -28,6 +28,12 @@ export class MenusController {
     return this.menusService.findAll();
   }
 
+  @Get(':id')
+  @RequirePermissions('menus.read')
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.menusService.findOne(id);
+  }
+
   @Post()
   @RequirePermissions('menus.create')
   @ResponseMessage('Menú creado correctamente')

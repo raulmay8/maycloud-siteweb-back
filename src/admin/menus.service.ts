@@ -25,7 +25,26 @@ export class MenusService {
   findAll() {
     return this.prisma.menu.findMany({
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
-      include: { permission: true },
+      include: {
+        permission: true,
+        parent: { select: { id: true, key: true, label: true } },
+        _count: { select: { children: true } },
+      },
+    });
+  }
+
+  async findOne(id: string) {
+    await this.requireMenu(id);
+    return this.prisma.menu.findUnique({
+      where: { id },
+      include: {
+        permission: true,
+        parent: { select: { id: true, key: true, label: true } },
+        children: {
+          select: { id: true, key: true, label: true, sortOrder: true },
+          orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+        },
+      },
     });
   }
 
@@ -43,6 +62,13 @@ export class MenusService {
 
   async update(id: string, dto: UpdateMenuDto) {
     await this.requireMenu(id);
+    if (dto.key) {
+      const existing = await this.prisma.menu.findFirst({
+        where: { key: dto.key, id: { not: id } },
+        select: { id: true },
+      });
+      if (existing) throw new ConflictException('La opción de menú ya existe');
+    }
     if (dto.parentId === id) {
       throw new BadRequestException('Un menú no puede ser su propio padre');
     }
@@ -96,8 +122,8 @@ export class MenusService {
   }
 
   private async validateRelations(
-    parentId?: string,
-    permissionId?: string,
+    parentId?: string | null,
+    permissionId?: string | null,
     currentId?: string,
   ) {
     if (parentId) {
