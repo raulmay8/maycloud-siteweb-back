@@ -10,6 +10,7 @@ export const envValidationSchema = Joi.object({
   CORS_ALLOWED_ORIGINS: Joi.string().optional(),
   SWAGGER_ENABLED: Joi.boolean().default(false),
   SERVER_HOST_ROOT: Joi.string().allow('').default(''),
+  DOCKER_SOCKET_PATH: Joi.string().default('/var/run/docker.sock'),
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
