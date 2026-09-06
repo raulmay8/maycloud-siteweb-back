@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn } from 'class-validator';
+
 import { ContactMessageStatus } from '../../generated/prisma/client';
 
 const readableStatuses = [
@@ -10,7 +11,10 @@ const readableStatuses = [
 export type ReadableContactMessageStatus = (typeof readableStatuses)[number];
 
 export class UpdateContactMessageStatusDto {
-  @ApiProperty({ enum: readableStatuses, example: ContactMessageStatus.READ })
+  @ApiProperty({
+    enum: readableStatuses,
+    example: ContactMessageStatus.READ,
+  })
   @IsIn(readableStatuses)
   status!: ReadableContactMessageStatus;
 }
