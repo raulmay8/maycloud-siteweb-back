@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { render } from '@react-email/render';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { createElement } from 'react';
+
 import type { ContactEmailData } from './mail.types';
 import { ContactAdminEmail } from './templates/contact-admin.email';
 import { ContactCustomerEmail } from './templates/contact-customer.email';
@@ -15,6 +16,7 @@ export class MailService implements OnModuleInit {
 
   constructor(private readonly config: ConfigService) {
     this.enabled = this.config.get<boolean>('MAIL_ENABLED') ?? false;
+
     this.transporter = this.enabled
       ? nodemailer.createTransport({
           host: this.config.getOrThrow<string>('SMTP_HOST'),
@@ -28,58 +30,93 @@ export class MailService implements OnModuleInit {
       : null;
   }
 
-  async onModuleInit() {
+  async onModuleInit(): Promise<void> {
     if (!this.transporter) {
       this.logger.log('Email sending is disabled');
       return;
     }
 
-    await this.transporter.verify();
-    this.logger.log('SMTP connection verified');
+    try {
+      await this.transporter.verify();
+      this.logger.log('SMTP connection verified');
+    } catch (error) {
+      this.logger.error(
+        'SMTP connection could not be verified',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   async sendContactEmails(data: ContactEmailData): Promise<void> {
-    if (!this.transporter) return;
+    if (!this.transporter) {
+      return;
+    }
+
+    const fromAddress = this.config.getOrThrow<string>('MAIL_FROM_ADDRESS');
 
     const from = {
       name: this.config.getOrThrow<string>('MAIL_FROM_NAME'),
-      address: this.config.getOrThrow<string>('MAIL_FROM_ADDRESS'),
+      address: fromAddress,
     };
-    const adminAddress = this.config.getOrThrow<string>('MAIL_CONTACT_TO');
+
+    const adminRecipients = this.config.getOrThrow<string>('MAIL_CONTACT_TO');
+
     const customerSubject =
       data.locale === 'en'
         ? 'We received your message | MayCloud'
         : 'Recibimos tu mensaje | MayCloud';
+
     const adminSubject =
       data.locale === 'en'
         ? `New contact: ${data.name}`
         : `Nuevo contacto: ${data.name}`;
 
+    const customerElement = createElement(ContactCustomerEmail, { data });
+
+    const adminElement = createElement(ContactAdminEmail, { data });
+
     const [customerHtml, customerText, adminHtml, adminText] =
       await Promise.all([
-        render(createElement(ContactCustomerEmail, { data })),
-        render(createElement(ContactCustomerEmail, { data }), {
+        render(customerElement),
+
+        render(customerElement, {
           plainText: true,
         }),
-        render(createElement(ContactAdminEmail, { data })),
-        render(createElement(ContactAdminEmail, { data }), {
+
+        render(adminElement),
+
+        render(adminElement, {
           plainText: true,
         }),
       ]);
 
     const results = await Promise.allSettled([
+      // Correo de confirmación al cliente
       this.transporter.sendMail({
         from,
         to: data.email,
-        replyTo: adminAddress,
+
+        // Si el cliente responde, llegará a contacto@maycloud.mx
+        replyTo: fromAddress,
+
         subject: customerSubject,
         html: customerHtml,
         text: customerText,
       }),
+
+      // Notificación interna
       this.transporter.sendMail({
         from,
-        to: adminAddress,
-        replyTo: { name: data.name, address: data.email },
+
+        // contacto@maycloud.mx + Gmail + Hotmail
+        to: adminRecipients,
+
+        // Al responder, irá directamente al prospecto
+        replyTo: {
+          name: data.name,
+          address: data.email,
+        },
+
         subject: adminSubject,
         html: adminHtml,
         text: adminText,
@@ -87,15 +124,18 @@ export class MailService implements OnModuleInit {
     ]);
 
     results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        const recipient = index === 0 ? 'customer' : 'administrator';
-        this.logger.error(
-          `Could not send contact email to ${recipient} (${data.reference})`,
-          result.reason instanceof Error
-            ? result.reason.stack
-            : String(result.reason),
-        );
+      if (result.status !== 'rejected') {
+        return;
       }
+
+      const recipient = index === 0 ? 'customer' : 'administrator';
+
+      this.logger.error(
+        `Could not send contact email to ${recipient} (${data.reference})`,
+        result.reason instanceof Error
+          ? result.reason.stack
+          : String(result.reason),
+      );
     });
   }
 }

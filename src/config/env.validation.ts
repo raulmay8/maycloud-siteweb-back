@@ -66,7 +66,28 @@ export const envValidationSchema = Joi.object({
   }),
   MAIL_CONTACT_TO: Joi.when('MAIL_ENABLED', {
     is: true,
-    then: Joi.string().email().required(),
+    then: Joi.string()
+      .required()
+      .custom((value: string, helpers) => {
+        const emails = value
+          .split(',')
+          .map((email) => email.trim())
+          .filter(Boolean);
+
+        if (emails.length === 0) {
+          return helpers.error('any.invalid');
+        }
+
+        for (const email of emails) {
+          const { error } = Joi.string().email().validate(email);
+
+          if (error) {
+            return helpers.error('any.invalid');
+          }
+        }
+
+        return value;
+      }, 'comma-separated email validation'),
     otherwise: Joi.string().allow('').optional(),
   }),
 });
