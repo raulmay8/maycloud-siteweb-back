@@ -52,7 +52,6 @@ export function EmailLayout({
 
       <Body style={styles.body}>
         <Container style={styles.container}>
-          {/* Header */}
           <Section style={styles.header}>
             <Row>
               <Column style={styles.logoColumn}>
