@@ -10,13 +10,14 @@
   },
   "scripts": {
     "build": "prisma generate && nest build",
-    "format": "prettier --write \"{src,test,prisma}/**/*.ts\" \"*.{ts,js,json,mjs}\"",
-    "format:check": "prettier --check \"{src,test,prisma}/**/*.ts\" \"*.{ts,js,json,mjs}\"",
+    "format": "prettier --write \"{src,test,prisma,email-previews}/**/*.{ts,tsx}\" \"*.{ts,js,json,mjs}\"",
+    "format:check": "prettier --check \"{src,test,prisma,email-previews}/**/*.{ts,tsx}\" \"*.{ts,js,json,mjs}\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,test,prisma}/**/*.ts\" \"*.ts\"",
+    "email:dev": "email dev --dir email-previews --port 3001",
+    "lint": "eslint \"{src,test,prisma,email-previews}/**/*.{ts,tsx}\" \"*.ts\"",
     "lint:fix": "npm run lint -- --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -45,15 +46,20 @@
     "@nestjs/websockets": "^11.2.1",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.0",
     "argon2": "^0.45.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "helmet": "^8.3.0",
     "joi": "^18.2.3",
+    "nodemailer": "^10.0.11",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3"
@@ -64,12 +70,16 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@react-email/ui": "^6.11.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/supertest": "^7.0.0",
     "dotenv": "^17.4.2",
     "eslint": "^9.18.0",
@@ -81,6 +91,7 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.4.2",
     "prisma": "^7.9.1",
+    "react-email": "^6.11.0",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
@@ -95,15 +106,16 @@
     "moduleFileExtensions": [
       "js",
       "json",
-      "ts"
+      "ts",
+      "tsx"
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)sx?$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s?(x)"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",

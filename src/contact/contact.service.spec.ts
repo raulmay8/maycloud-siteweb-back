@@ -4,6 +4,7 @@ import { ContactService } from './contact.service';
 import { TurnstileService } from './turnstile.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { ContactMessageStatus } from '../generated/prisma/client';
+import { MailService } from '../mail/mail.service';
 
 describe('ContactService', () => {
   let service: ContactService;
@@ -21,11 +22,19 @@ describe('ContactService', () => {
   const findLanguage = jest.fn();
   const emitContactMessageCreated = jest.fn();
   const emitContactNotificationUpdated = jest.fn();
+  const sendContactEmails = jest.fn();
 
   beforeEach(async () => {
     jest.resetAllMocks();
-    findStage.mockResolvedValue({ id: 'stage-id' });
-    findOptions.mockResolvedValue([{ id: 'option-id' }]);
+    findStage.mockResolvedValue({
+      id: 'stage-id',
+      code: 'IDEA',
+      translations: [{ name: 'Idea' }],
+    });
+    findOptions.mockResolvedValue([
+      { id: 'option-id', code: 'WEB', translations: [{ name: 'Sitio web' }] },
+    ]);
+    sendContactEmails.mockResolvedValue(undefined);
     findStages.mockResolvedValue([]);
     findDefaultLanguage.mockResolvedValue({
       id: 'es-id',
@@ -67,6 +76,7 @@ describe('ContactService', () => {
             emitContactNotificationUpdated,
           },
         },
+        { provide: MailService, useValue: { sendContactEmails } },
       ],
     }).compile();
     service = module.get(ContactService);
@@ -189,6 +199,18 @@ describe('ContactService', () => {
       id: 'contact-id',
       createdAt: '2026-08-19T15:00:00.000Z',
     });
+    expect(sendContactEmails).toHaveBeenCalledWith({
+      reference: 'contact-id',
+      locale: 'es',
+      name: 'Mar\u00eda L\u00f3pez',
+      companyOrProject: 'Nuevo proyecto',
+      email: 'maria@empresa.com',
+      phone: null,
+      projectStage: 'Idea',
+      developmentOptions: ['Sitio web'],
+      message: 'Quiero conversar sobre un proyecto.',
+      createdAt,
+    });
   });
 
   it('silently discards submissions that fill the honeypot', async () => {
@@ -204,6 +226,7 @@ describe('ContactService', () => {
     expect(verify).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
     expect(emitContactMessageCreated).not.toHaveBeenCalled();
+    expect(sendContactEmails).not.toHaveBeenCalled();
   });
 
   it('rejects an unavailable project stage before storing the message', async () => {

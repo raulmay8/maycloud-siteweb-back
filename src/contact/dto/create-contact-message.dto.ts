@@ -5,6 +5,7 @@ import {
   ArrayUnique,
   IsArray,
   IsEmail,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -15,7 +16,19 @@ import {
 
 import { Trim } from '../../common/validation/trim.decorator';
 
+export const contactLocales = ['es', 'en'] as const;
+export type ContactLocale = (typeof contactLocales)[number];
+
 export class CreateContactMessageDto {
+  @ApiPropertyOptional({
+    enum: contactLocales,
+    default: 'es',
+    description: 'Idioma en el que se enviar\u00e1 la confirmaci\u00f3n',
+  })
+  @IsOptional()
+  @IsIn(contactLocales)
+  locale?: ContactLocale;
+
   @ApiProperty({
     example: 'María López',
     minLength: 2,

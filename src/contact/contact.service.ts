@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
 import { ContactMessageStatus } from '../generated/prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { MailService } from '../mail/mail.service';
 
 import type { ContactCatalogQueryDto } from './dto/contact-catalog-query.dto';
 import type { CreateContactMessageDto } from './dto/create-contact-message.dto';
@@ -18,10 +20,13 @@ import { TurnstileService } from './turnstile.service';
 
 @Injectable()
 export class ContactService {
+  private readonly logger = new Logger(ContactService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly turnstile: TurnstileService,
     private readonly notifications: NotificationsGateway,
+    private readonly mail: MailService,
   ) {}
 
   // ===========================================================================
@@ -365,6 +370,7 @@ export class ContactService {
   // ===========================================================================
 
   async create(dto: CreateContactMessageDto, remoteIp?: string) {
+    const locale = dto.locale ?? 'es';
     /**
      * Honeypot.
      *
@@ -383,79 +389,96 @@ export class ContactService {
      */
     await this.turnstile.verify(dto.turnstileToken, remoteIp);
 
-    const contact = await this.prisma.$transaction(async (transaction) => {
-      // -----------------------------------------------------------------------
-      // Etapa del proyecto
-      // -----------------------------------------------------------------------
+    const { contact, projectStage, developmentOptions } =
+      await this.prisma.$transaction(async (transaction) => {
+        // -----------------------------------------------------------------------
+        // Etapa del proyecto
+        // -----------------------------------------------------------------------
 
-      const projectStage = await transaction.projectStage.findFirst({
-        where: {
-          id: dto.projectStageId,
-          isActive: true,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!projectStage) {
-        throw new BadRequestException(
-          'La etapa del proyecto seleccionada no es válida',
-        );
-      }
-
-      // -----------------------------------------------------------------------
-      // Opciones de desarrollo
-      // -----------------------------------------------------------------------
-
-      const developmentOptions = await transaction.developmentOption.findMany({
-        where: {
-          id: {
-            in: dto.developmentOptionIds,
+        const projectStage = await transaction.projectStage.findFirst({
+          where: {
+            id: dto.projectStageId,
+            isActive: true,
           },
-          isActive: true,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (developmentOptions.length !== dto.developmentOptionIds.length) {
-        throw new BadRequestException(
-          'Una o más opciones de desarrollo no son válidas',
-        );
-      }
-
-      // -----------------------------------------------------------------------
-      // Contacto
-      // -----------------------------------------------------------------------
-
-      return transaction.contactMessage.create({
-        data: {
-          name: dto.name,
-
-          companyOrProject: dto.companyOrProject?.trim() || null,
-
-          email: dto.email.toLowerCase(),
-
-          phone: dto.phone?.trim() || null,
-
-          projectStageId: projectStage.id,
-
-          message: dto.message,
-
-          developmentOptions: {
-            create: dto.developmentOptionIds.map((developmentOptionId) => ({
-              developmentOptionId,
-            })),
+          select: {
+            id: true,
+            code: true,
+            translations: {
+              where: { language: { code: locale } },
+              select: { name: true },
+              take: 1,
+            },
           },
-        },
-        select: {
-          id: true,
-          createdAt: true,
-        },
+        });
+
+        if (!projectStage) {
+          throw new BadRequestException(
+            'La etapa del proyecto seleccionada no es válida',
+          );
+        }
+
+        // -----------------------------------------------------------------------
+        // Opciones de desarrollo
+        // -----------------------------------------------------------------------
+
+        const developmentOptions = await transaction.developmentOption.findMany(
+          {
+            where: {
+              id: {
+                in: dto.developmentOptionIds,
+              },
+              isActive: true,
+            },
+            select: {
+              id: true,
+              code: true,
+              translations: {
+                where: { language: { code: locale } },
+                select: { name: true },
+                take: 1,
+              },
+            },
+          },
+        );
+
+        if (developmentOptions.length !== dto.developmentOptionIds.length) {
+          throw new BadRequestException(
+            'Una o más opciones de desarrollo no son válidas',
+          );
+        }
+
+        // -----------------------------------------------------------------------
+        // Contacto
+        // -----------------------------------------------------------------------
+
+        const contact = await transaction.contactMessage.create({
+          data: {
+            name: dto.name,
+
+            companyOrProject: dto.companyOrProject?.trim() || null,
+
+            email: dto.email.toLowerCase(),
+
+            phone: dto.phone?.trim() || null,
+
+            projectStageId: projectStage.id,
+
+            message: dto.message,
+
+            developmentOptions: {
+              create: dto.developmentOptionIds.map((developmentOptionId) => ({
+                developmentOptionId,
+              })),
+            },
+          },
+          select: {
+            id: true,
+            createdAt: true,
+          },
+        });
+
+        return { contact, projectStage, developmentOptions };
       });
-    });
 
     // =========================================================================
     // Notificación
@@ -465,6 +488,28 @@ export class ContactService {
       id: contact.id,
       createdAt: contact.createdAt.toISOString(),
     });
+
+    void this.mail
+      .sendContactEmails({
+        reference: contact.id,
+        locale,
+        name: dto.name,
+        companyOrProject: dto.companyOrProject?.trim() || null,
+        email: dto.email.toLowerCase(),
+        phone: dto.phone?.trim() || null,
+        projectStage: projectStage.translations[0]?.name ?? projectStage.code,
+        developmentOptions: developmentOptions.map(
+          (option) => option.translations[0]?.name ?? option.code,
+        ),
+        message: dto.message,
+        createdAt: contact.createdAt,
+      })
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Could not prepare contact emails (${contact.id})`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
 
     return {
       reference: contact.id,

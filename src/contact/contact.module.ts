@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MailModule } from '../mail/mail.module';
 import { ContactController } from './contact.controller';
 import { ContactService } from './contact.service';
 import { TurnstileService } from './turnstile.service';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, MailModule],
   controllers: [ContactController],
   providers: [ContactService, TurnstileService],
 })

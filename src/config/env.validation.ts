@@ -30,4 +30,43 @@ export const envValidationSchema = Joi.object({
   }),
   TURNSTILE_EXPECTED_HOSTNAME: Joi.string().allow('').default(''),
   TURNSTILE_EXPECTED_ACTION: Joi.string().default('contact'),
+  MAIL_ENABLED: Joi.boolean().default(true),
+  SMTP_HOST: Joi.when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.string().hostname().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  SMTP_PORT: Joi.number().port().when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.required(),
+  }),
+  SMTP_SECURE: Joi.boolean().when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.required(),
+  }),
+  SMTP_USER: Joi.when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.string().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  SMTP_PASSWORD: Joi.when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.string().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  MAIL_FROM_ADDRESS: Joi.when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.string().email().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  MAIL_FROM_NAME: Joi.when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.string().max(120).required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  MAIL_CONTACT_TO: Joi.when('MAIL_ENABLED', {
+    is: true,
+    then: Joi.string().email().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
 });
