@@ -47,6 +47,13 @@ const leadDetailInclude = {
     orderBy: { createdAt: 'desc' as const },
     include: { sender: { select: personSelect } },
   },
+  _count: {
+    select: {
+      notes: true,
+      activities: true,
+      emails: { where: { status: CrmEmailStatus.SENT } },
+    },
+  },
 } as const;
 
 type LeadDetail = Prisma.CrmLeadGetPayload<{
@@ -148,16 +155,26 @@ export class CrmService {
             orderBy: { occurredAt: 'desc' },
             include: { performedBy: { select: personSelect } },
           },
+          _count: {
+            select: {
+              notes: true,
+              activities: true,
+              emails: { where: { status: CrmEmailStatus.SENT } },
+            },
+          },
         },
       }),
       this.prisma.crmLead.count({ where }),
     ]);
 
     return {
-      items: items.map(({ activities, ...lead }) => ({
+      items: items.map(({ activities, _count, ...lead }) => ({
         ...lead,
         categories: lead.categories.map(({ category }) => category),
         lastContact: activities[0] ?? null,
+        hasNotes: _count.notes > 0,
+        hasSentEmails: _count.emails > 0,
+        hasActivities: _count.activities > 0,
       })),
       pagination: {
         page: query.page,
@@ -454,8 +471,9 @@ export class CrmService {
   }
 
   private mapDetail(lead: LeadDetail) {
+    const { _count, ...detail } = lead;
     return {
-      ...lead,
+      ...detail,
       categories: lead.categories.map((item) => item.category),
       digitalAssets: lead.digitalAssets.map((item) => ({
         ...item.digitalAsset,
@@ -466,6 +484,9 @@ export class CrmService {
         priority: item.priority,
         notes: item.notes,
       })),
+      hasNotes: _count.notes > 0,
+      hasSentEmails: _count.emails > 0,
+      hasActivities: _count.activities > 0,
     };
   }
 }
