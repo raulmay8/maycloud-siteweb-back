@@ -140,8 +140,16 @@ export class MailService implements OnModuleInit {
     });
   }
 
-  async renderCrmEmail(subject: string, content: string) {
-    const element = createElement(CrmEmailTemplate, { subject, content });
+  async renderCrmEmail(
+    subject: string,
+    content: string,
+    locale: 'es' | 'en' = 'es',
+  ) {
+    const element = createElement(CrmEmailTemplate, {
+      subject,
+      content,
+      locale,
+    });
     const [html, text] = await Promise.all([
       render(element),
       render(element, { plainText: true }),
@@ -153,13 +161,18 @@ export class MailService implements OnModuleInit {
     recipient: string;
     subject: string;
     content: string;
+    locale: 'es' | 'en';
   }): Promise<{ messageId: string | null }> {
     if (!this.transporter) {
       throw new Error('El envío de correo está deshabilitado');
     }
 
     const fromAddress = this.config.getOrThrow<string>('MAIL_FROM_ADDRESS');
-    const rendered = await this.renderCrmEmail(input.subject, input.content);
+    const rendered = await this.renderCrmEmail(
+      input.subject,
+      input.content,
+      input.locale,
+    );
     const result = await this.transporter.sendMail({
       from: {
         name: this.config.getOrThrow<string>('MAIL_FROM_NAME'),

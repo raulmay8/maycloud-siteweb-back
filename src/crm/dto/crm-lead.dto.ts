@@ -6,6 +6,7 @@ import {
   IsEmail,
   IsEnum,
   IsInt,
+  IsIn,
   IsISO8601,
   IsOptional,
   IsString,
@@ -223,6 +224,11 @@ export class CreateCrmActivityDto {
 }
 
 export class CrmEmailDto {
+  @ApiPropertyOptional({ enum: ['es', 'en'], default: 'es' })
+  @IsOptional()
+  @IsIn(['es', 'en'])
+  locale: 'es' | 'en' = 'es';
+
   @Trim()
   @IsOptional()
   @IsEmail()

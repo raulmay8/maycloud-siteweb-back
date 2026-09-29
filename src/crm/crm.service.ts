@@ -338,7 +338,8 @@ export class CrmService {
     }
     return {
       recipient,
-      ...(await this.mail.renderCrmEmail(dto.subject, dto.content)),
+      locale: dto.locale,
+      ...(await this.mail.renderCrmEmail(dto.subject, dto.content, dto.locale)),
     };
   }
 
@@ -353,6 +354,7 @@ export class CrmService {
         leadId: id,
         senderUserId: actorId,
         recipient,
+        locale: dto.locale,
         subject: dto.subject,
         content: dto.content,
       },
@@ -363,6 +365,7 @@ export class CrmService {
         recipient,
         subject: dto.subject,
         content: dto.content,
+        locale: dto.locale,
       });
       const sentAt = new Date();
       const sent = await this.prisma.$transaction(async (tx) => {

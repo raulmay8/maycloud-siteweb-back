@@ -1,0 +1,2 @@
+ALTER TABLE "crm_emails"
+ADD COLUMN "locale" VARCHAR(10) NOT NULL DEFAULT 'es';

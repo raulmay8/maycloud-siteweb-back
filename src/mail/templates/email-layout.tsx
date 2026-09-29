@@ -294,6 +294,22 @@ export const styles = {
     lineHeight: '1.5',
   },
 
+  crmInvitation: {
+    margin: '30px 0 8px',
+    color: '#64748b',
+    fontSize: '14px',
+    lineHeight: '1.55',
+    textAlign: 'center' as const,
+  },
+
+  crmClosing: {
+    margin: '18px 0 12px',
+    color: '#64748b',
+    fontSize: '13px',
+    lineHeight: '1.5',
+    textAlign: 'center' as const,
+  },
+
   /* CTA */
 
   buttonContainer: {

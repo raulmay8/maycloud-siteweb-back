@@ -419,6 +419,7 @@ model CrmEmail {
   leadId            String         @map("lead_id") @db.Uuid
   senderUserId      String         @map("sender_user_id") @db.Uuid
   recipient         String         @db.VarChar(255)
+  locale            String         @default("es") @db.VarChar(10)
   subject           String         @db.VarChar(200)
   content           String         @db.Text
   status            CrmEmailStatus @default(PENDING)
