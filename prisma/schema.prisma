@@ -20,6 +20,38 @@ enum AnalyticsEventType {
   CONTACT_FORM_INTERACTION
 }
 
+enum CrmActivityType {
+  PHONE_CALL
+  EMAIL
+  WHATSAPP
+  MEETING
+  STATUS_CHANGE
+  NOTE
+  OTHER
+}
+
+enum CrmEmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum CrmLinkType {
+  WEBSITE
+  FACEBOOK
+  INSTAGRAM
+  TIKTOK
+  LINKEDIN
+  GOOGLE_MAPS
+  OTHER
+}
+
+enum CrmOfferingPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 /// Representa una visita al sitio. El id numérico se usa únicamente para
 /// relaciones internas; sessionToken es el identificador seguro que podrá
 /// almacenarse en la cookie y recibirse desde el cliente.
@@ -176,18 +208,231 @@ model ContactMessageDevelopmentOption {
 }
 
 model User {
-  id            String         @id @default(uuid()) @db.Uuid
-  email         String         @unique @db.VarChar(255)
-  passwordHash  String         @map("password_hash") @db.VarChar(255)
-  firstName     String?        @map("first_name") @db.VarChar(100)
-  lastName      String?        @map("last_name") @db.VarChar(100)
-  isActive      Boolean        @default(true) @map("is_active")
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  roles         UserRole[]
-  refreshTokens RefreshToken[]
+  id               String            @id @default(uuid()) @db.Uuid
+  email            String            @unique @db.VarChar(255)
+  passwordHash     String            @map("password_hash") @db.VarChar(255)
+  firstName        String?           @map("first_name") @db.VarChar(100)
+  lastName         String?           @map("last_name") @db.VarChar(100)
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  roles            UserRole[]
+  refreshTokens    RefreshToken[]
+  createdCrmLeads  CrmLead[]         @relation("CrmLeadCreator")
+  assignedCrmLeads CrmLead[]         @relation("CrmLeadAssignee")
+  crmNotes         CrmLeadNote[]     @relation("CrmNoteAuthor")
+  crmActivities    CrmLeadActivity[] @relation("CrmActivityActor")
+  crmEmails        CrmEmail[]        @relation("CrmEmailSender")
 
   @@map("users")
+}
+
+model CrmLeadStatus {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    @unique @db.VarChar(50)
+  name      String    @db.VarChar(100)
+  color     String?   @db.VarChar(20)
+  sortOrder Int       @default(0) @map("sort_order")
+  isActive  Boolean   @default(true) @map("is_active")
+  isFinal   Boolean   @default(false) @map("is_final")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  leads     CrmLead[]
+
+  @@index([isActive, sortOrder])
+  @@map("crm_lead_statuses")
+}
+
+model CrmBusinessType {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    @unique @db.VarChar(80)
+  name      String    @db.VarChar(120)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  leads     CrmLead[]
+
+  @@index([isActive, name])
+  @@map("crm_business_types")
+}
+
+model CrmLeadCategory {
+  id        String                      @id @default(uuid()) @db.Uuid
+  name      String                      @unique @db.VarChar(100)
+  color     String?                     @db.VarChar(20)
+  isActive  Boolean                     @default(true) @map("is_active")
+  createdAt DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  leads     CrmLeadCategoryAssignment[]
+
+  @@index([isActive, name])
+  @@map("crm_lead_categories")
+}
+
+model CrmDigitalAsset {
+  id        String                @id @default(uuid()) @db.Uuid
+  code      String                @unique @db.VarChar(80)
+  name      String                @db.VarChar(120)
+  sortOrder Int                   @default(0) @map("sort_order")
+  isActive  Boolean               @default(true) @map("is_active")
+  createdAt DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  leads     CrmLeadDigitalAsset[]
+
+  @@index([isActive, sortOrder])
+  @@map("crm_digital_assets")
+}
+
+model CrmServiceOffering {
+  id          String                   @id @default(uuid()) @db.Uuid
+  code        String                   @unique @db.VarChar(80)
+  name        String                   @db.VarChar(120)
+  description String?                  @db.VarChar(500)
+  isActive    Boolean                  @default(true) @map("is_active")
+  createdAt   DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  leads       CrmLeadServiceOffering[]
+
+  @@index([isActive, name])
+  @@map("crm_service_offerings")
+}
+
+model CrmLead {
+  id             String   @id @default(uuid()) @db.Uuid
+  company        String   @db.VarChar(160)
+  contactName    String?  @map("contact_name") @db.VarChar(120)
+  position       String?  @db.VarChar(120)
+  phone          String?  @db.VarChar(30)
+  email          String?  @db.VarChar(255)
+  address        String?  @db.VarChar(300)
+  city           String?  @db.VarChar(120)
+  statusId       String   @map("status_id") @db.Uuid
+  businessTypeId String?  @map("business_type_id") @db.Uuid
+  createdById    String   @map("created_by_id") @db.Uuid
+  assignedToId   String?  @map("assigned_to_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  status           CrmLeadStatus               @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  businessType     CrmBusinessType?            @relation(fields: [businessTypeId], references: [id], onDelete: SetNull)
+  createdBy        User                        @relation("CrmLeadCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedTo       User?                       @relation("CrmLeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  categories       CrmLeadCategoryAssignment[]
+  digitalAssets    CrmLeadDigitalAsset[]
+  serviceOfferings CrmLeadServiceOffering[]
+  links            CrmLeadLink[]
+  notes            CrmLeadNote[]
+  activities       CrmLeadActivity[]
+  emails           CrmEmail[]
+
+  @@index([statusId, updatedAt])
+  @@index([businessTypeId])
+  @@index([assignedToId])
+  @@index([company])
+  @@index([email])
+  @@map("crm_leads")
+}
+
+model CrmLeadCategoryAssignment {
+  leadId     String          @map("lead_id") @db.Uuid
+  categoryId String          @map("category_id") @db.Uuid
+  lead       CrmLead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  category   CrmLeadCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([leadId, categoryId])
+  @@index([categoryId])
+  @@map("crm_lead_category_assignments")
+}
+
+model CrmLeadDigitalAsset {
+  leadId         String          @map("lead_id") @db.Uuid
+  digitalAssetId String          @map("digital_asset_id") @db.Uuid
+  details        String?         @db.VarChar(500)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  lead           CrmLead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  digitalAsset   CrmDigitalAsset @relation(fields: [digitalAssetId], references: [id], onDelete: Restrict)
+
+  @@id([leadId, digitalAssetId])
+  @@index([digitalAssetId])
+  @@map("crm_lead_digital_assets")
+}
+
+model CrmLeadServiceOffering {
+  leadId            String              @map("lead_id") @db.Uuid
+  serviceOfferingId String              @map("service_offering_id") @db.Uuid
+  priority          CrmOfferingPriority @default(MEDIUM)
+  notes             String?             @db.VarChar(500)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  lead              CrmLead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  serviceOffering   CrmServiceOffering  @relation(fields: [serviceOfferingId], references: [id], onDelete: Restrict)
+
+  @@id([leadId, serviceOfferingId])
+  @@index([serviceOfferingId])
+  @@map("crm_lead_service_offerings")
+}
+
+model CrmLeadLink {
+  id        String      @id @default(uuid()) @db.Uuid
+  leadId    String      @map("lead_id") @db.Uuid
+  type      CrmLinkType
+  label     String?     @db.VarChar(100)
+  url       String      @db.VarChar(2048)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lead      CrmLead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, type])
+  @@map("crm_lead_links")
+}
+
+model CrmLeadNote {
+  id          String   @id @default(uuid()) @db.Uuid
+  leadId      String   @map("lead_id") @db.Uuid
+  content     String   @db.Text
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lead        CrmLead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation("CrmNoteAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([leadId, createdAt])
+  @@map("crm_lead_notes")
+}
+
+model CrmLeadActivity {
+  id            String          @id @default(uuid()) @db.Uuid
+  leadId        String          @map("lead_id") @db.Uuid
+  type          CrmActivityType
+  description   String?         @db.Text
+  performedById String          @map("performed_by_id") @db.Uuid
+  occurredAt    DateTime        @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  lead          CrmLead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  performedBy   User            @relation("CrmActivityActor", fields: [performedById], references: [id], onDelete: Restrict)
+
+  @@index([leadId, occurredAt])
+  @@map("crm_lead_activities")
+}
+
+model CrmEmail {
+  id                String         @id @default(uuid()) @db.Uuid
+  leadId            String         @map("lead_id") @db.Uuid
+  senderUserId      String         @map("sender_user_id") @db.Uuid
+  recipient         String         @db.VarChar(255)
+  subject           String         @db.VarChar(200)
+  content           String         @db.Text
+  status            CrmEmailStatus @default(PENDING)
+  providerMessageId String?        @map("provider_message_id") @db.VarChar(500)
+  errorMessage      String?        @map("error_message") @db.Text
+  sentAt            DateTime?      @map("sent_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lead              CrmLead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sender            User           @relation("CrmEmailSender", fields: [senderUserId], references: [id], onDelete: Restrict)
+
+  @@index([leadId, createdAt])
+  @@index([status, createdAt])
+  @@map("crm_emails")
 }
 
 model Role {

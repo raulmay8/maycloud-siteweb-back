@@ -7,6 +7,7 @@ import { createElement } from 'react';
 import type { ContactEmailData } from './mail.types';
 import { ContactAdminEmail } from './templates/contact-admin.email';
 import { ContactCustomerEmail } from './templates/contact-customer.email';
+import { CrmEmailTemplate } from './templates/crm.email';
 
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -137,5 +138,40 @@ export class MailService implements OnModuleInit {
           : String(result.reason),
       );
     });
+  }
+
+  async renderCrmEmail(subject: string, content: string) {
+    const element = createElement(CrmEmailTemplate, { subject, content });
+    const [html, text] = await Promise.all([
+      render(element),
+      render(element, { plainText: true }),
+    ]);
+    return { html, text };
+  }
+
+  async sendCrmEmail(input: {
+    recipient: string;
+    subject: string;
+    content: string;
+  }): Promise<{ messageId: string | null }> {
+    if (!this.transporter) {
+      throw new Error('El envío de correo está deshabilitado');
+    }
+
+    const fromAddress = this.config.getOrThrow<string>('MAIL_FROM_ADDRESS');
+    const rendered = await this.renderCrmEmail(input.subject, input.content);
+    const result = await this.transporter.sendMail({
+      from: {
+        name: this.config.getOrThrow<string>('MAIL_FROM_NAME'),
+        address: fromAddress,
+      },
+      to: input.recipient,
+      replyTo: fromAddress,
+      subject: input.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+
+    return { messageId: result.messageId || null };
   }
 }

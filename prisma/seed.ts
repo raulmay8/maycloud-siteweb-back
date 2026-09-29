@@ -44,6 +44,13 @@ async function main(): Promise<void> {
     ['menus.update', 'Actualizar menús'],
     ['menus.delete', 'Eliminar menús'],
 
+    ['crm.leads.read', 'Consultar prospectos del CRM'],
+    ['crm.leads.create', 'Crear prospectos del CRM'],
+    ['crm.leads.update', 'Actualizar prospectos del CRM'],
+    ['crm.notes.create', 'Agregar notas administrativas a prospectos'],
+    ['crm.activities.create', 'Registrar actividades con prospectos'],
+    ['crm.emails.send', 'Previsualizar y enviar correos a prospectos'],
+
     ['contact_messages.read', 'Consultar mensajes de contacto'],
     ['contact_messages.update', 'Marcar mensajes de contacto como leídos'],
 
@@ -149,6 +156,50 @@ async function main(): Promise<void> {
       icon: 'settings',
       sortOrder: 100,
       isActive: true,
+    },
+  });
+
+  const crm = await prisma.menu.upsert({
+    where: { key: 'crm' },
+    update: {
+      label: 'CRM',
+      icon: 'contact-round',
+      sortOrder: 50,
+      isActive: true,
+      route: null,
+      parentId: null,
+      permissionId: permissions.get('crm.leads.read'),
+    },
+    create: {
+      key: 'crm',
+      label: 'CRM',
+      icon: 'contact-round',
+      sortOrder: 50,
+      isActive: true,
+      permissionId: permissions.get('crm.leads.read'),
+    },
+  });
+
+  await prisma.menu.upsert({
+    where: { key: 'crm-leads' },
+    update: {
+      label: 'Prospectos',
+      route: '/admin/crm/leads',
+      icon: 'users-round',
+      sortOrder: 10,
+      isActive: true,
+      parentId: crm.id,
+      permissionId: permissions.get('crm.leads.read'),
+    },
+    create: {
+      key: 'crm-leads',
+      label: 'Prospectos',
+      route: '/admin/crm/leads',
+      icon: 'users-round',
+      sortOrder: 10,
+      isActive: true,
+      parentId: crm.id,
+      permissionId: permissions.get('crm.leads.read'),
     },
   });
 
@@ -567,6 +618,101 @@ async function main(): Promise<void> {
         name: definition.translations.en.name,
         description: definition.translations.en.description,
       },
+    });
+  }
+
+  // ===========================================================================
+  // Catálogos iniciales del CRM
+  // ===========================================================================
+
+  const crmStatuses = [
+    ['NEW', 'Nuevo', '#3b82f6', 10, false],
+    ['PENDING_CONTACT', 'Pendiente de contactar', '#f59e0b', 20, false],
+    ['CONTACTED', 'Contactado', '#8b5cf6', 30, false],
+    ['INTERESTED', 'Interesado', '#10b981', 40, false],
+    ['FOLLOW_UP', 'Seguimiento', '#06b6d4', 50, false],
+    ['NOT_INTERESTED', 'No interesado', '#64748b', 60, true],
+    ['CONVERTED', 'Convertido', '#22c55e', 70, true],
+    ['DISCARDED', 'Descartado', '#ef4444', 80, true],
+  ] as const;
+  for (const [code, name, color, sortOrder, isFinal] of crmStatuses) {
+    await prisma.crmLeadStatus.upsert({
+      where: { code },
+      update: { name, color, sortOrder, isFinal, isActive: true },
+      create: { code, name, color, sortOrder, isFinal },
+    });
+  }
+
+  const businessTypes = [
+    ['WORKSHOP', 'Taller'],
+    ['SCHOOL', 'Escuela'],
+    ['RESTAURANT', 'Restaurante'],
+    ['HOTEL', 'Hotel'],
+    ['CLINIC', 'Consultorio o clínica'],
+    ['RETAIL', 'Comercio'],
+    ['PROFESSIONAL_SERVICES', 'Servicios profesionales'],
+    ['OTHER', 'Otro'],
+  ] as const;
+  for (const [code, name] of businessTypes) {
+    await prisma.crmBusinessType.upsert({
+      where: { code },
+      update: { name, isActive: true },
+      create: { code, name },
+    });
+  }
+
+  const digitalAssets = [
+    ['FACEBOOK', 'Facebook', 10],
+    ['INSTAGRAM', 'Instagram', 20],
+    ['TIKTOK', 'TikTok', 30],
+    ['WHATSAPP_BUSINESS', 'WhatsApp Business', 40],
+    ['GOOGLE_BUSINESS', 'Google Business Profile', 50],
+    ['WEBSITE', 'Sitio web', 60],
+    ['WORDPRESS', 'Sitio WordPress', 70],
+    ['ONLINE_STORE', 'Tienda en línea', 80],
+    ['IMPROVABLE_WEBSITE', 'Sitio web mejorable', 90],
+    ['NO_WEBSITE', 'Sin sitio web', 100],
+  ] as const;
+  for (const [code, name, sortOrder] of digitalAssets) {
+    await prisma.crmDigitalAsset.upsert({
+      where: { code },
+      update: { name, sortOrder, isActive: true },
+      create: { code, name, sortOrder },
+    });
+  }
+
+  const offerings = [
+    ['NEW_WEBSITE', 'Sitio web nuevo'],
+    ['WEB_REDESIGN', 'Rediseño web'],
+    ['ONLINE_STORE', 'Tienda en línea'],
+    ['MOBILE_APP', 'Aplicación móvil'],
+    ['ADMIN_SYSTEM', 'Sistema administrativo'],
+    ['MAINTENANCE', 'Mantenimiento'],
+    ['SEO', 'SEO'],
+    ['SOCIAL_MEDIA', 'Gestión de redes sociales'],
+    ['AUTOMATION', 'Automatización'],
+  ] as const;
+  for (const [code, name] of offerings) {
+    await prisma.crmServiceOffering.upsert({
+      where: { code },
+      update: { name, isActive: true },
+      create: { code, name },
+    });
+  }
+
+  const categories = [
+    ['Negocio local', '#3b82f6'],
+    ['Venta en línea', '#8b5cf6'],
+    ['Empresa mediana', '#06b6d4'],
+    ['Cliente prioritario', '#ef4444'],
+    ['Requiere seguimiento', '#f59e0b'],
+    ['Referido', '#10b981'],
+  ] as const;
+  for (const [name, color] of categories) {
+    await prisma.crmLeadCategory.upsert({
+      where: { name },
+      update: { color, isActive: true },
+      create: { name, color },
     });
   }
 

@@ -15,6 +15,7 @@ import { PrismaModule } from './database/prisma.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ServerModule } from './server/server.module';
+import { CrmModule } from './crm/crm.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ServerModule } from './server/server.module';
     ContactModule,
     AnalyticsModule,
     ServerModule,
+    CrmModule,
   ],
   controllers: [AppController],
   providers: [
