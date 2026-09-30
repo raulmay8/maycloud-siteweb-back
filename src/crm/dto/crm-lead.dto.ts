@@ -241,6 +241,10 @@ export class CrmEmailDto {
   @MaxLength(200)
   subject!: string;
 
+  @ApiProperty({
+    description:
+      'Contenido HTML enriquecido. Admite formato de texto, colores, listas y enlaces; el servidor elimina HTML peligroso.',
+  })
   @Trim()
   @IsString()
   @MinLength(1)

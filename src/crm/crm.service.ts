@@ -349,6 +349,16 @@ export class CrmService {
     if (!recipient) {
       throw new BadRequestException('El prospecto no tiene correo electrónico');
     }
+    const contactedStatus = await this.prisma.crmLeadStatus.findUnique({
+      where: { code: 'CONTACTED' },
+      select: { id: true },
+    });
+    if (!contactedStatus) {
+      throw new BadRequestException(
+        'No se encontró el estado CONTACTED para el prospecto',
+      );
+    }
+
     const email = await this.prisma.crmEmail.create({
       data: {
         leadId: id,
@@ -386,6 +396,22 @@ export class CrmService {
             description: `Correo enviado: ${dto.subject}`,
           },
         });
+        await tx.crmLead.update({
+          where: { id },
+          data: { statusId: contactedStatus.id },
+        });
+        if (lead.statusId !== contactedStatus.id) {
+          await tx.crmLeadActivity.create({
+            data: {
+              leadId: id,
+              type: CrmActivityType.STATUS_CHANGE,
+              performedById: actorId,
+              occurredAt: sentAt,
+              description:
+                'Estado actualizado a Contactado por envío de correo',
+            },
+          });
+        }
         return updated;
       });
       return sent;
