@@ -11,6 +11,7 @@ import {
   Prisma,
 } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
+import { sanitizeCrmEmailContent } from '../mail/templates/crm.email';
 import type {
   CreateCrmActivityDto,
   CreateCrmLeadDto,
@@ -414,7 +415,10 @@ export class CrmService {
         }
         return updated;
       });
-      return sent;
+      return {
+        ...sent,
+        renderedContent: sanitizeCrmEmailContent(sent.content),
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.prisma.crmEmail.update({
@@ -512,6 +516,10 @@ export class CrmService {
         ...item.serviceOffering,
         priority: item.priority,
         notes: item.notes,
+      })),
+      emails: lead.emails.map((email) => ({
+        ...email,
+        renderedContent: sanitizeCrmEmailContent(email.content),
       })),
       hasNotes: _count.notes > 0,
       hasSentEmails: _count.emails > 0,
