@@ -5,6 +5,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '../database/prisma.service';
@@ -24,6 +25,7 @@ export class ContactService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
     private readonly turnstile: TurnstileService,
     private readonly notifications: NotificationsGateway,
     private readonly mail: MailService,
@@ -371,6 +373,7 @@ export class ContactService {
 
   async create(dto: CreateContactMessageDto, remoteIp?: string) {
     const locale = dto.locale ?? 'es';
+    const email = dto.email.toLowerCase();
     /**
      * Honeypot.
      *
@@ -391,6 +394,12 @@ export class ContactService {
 
     const { contact, projectStage, developmentOptions } =
       await this.prisma.$transaction(async (transaction) => {
+        // Serializa altas del mismo correo para que dos envíos simultáneos
+        // no creen prospectos duplicados sin requerir cambios al esquema.
+        await transaction.$queryRaw`
+          SELECT pg_advisory_xact_lock(hashtextextended(${email}, 0))
+        `;
+
         // -----------------------------------------------------------------------
         // Etapa del proyecto
         // -----------------------------------------------------------------------
@@ -457,7 +466,7 @@ export class ContactService {
 
             companyOrProject: dto.companyOrProject?.trim() || null,
 
-            email: dto.email.toLowerCase(),
+            email,
 
             phone: dto.phone?.trim() || null,
 
@@ -477,6 +486,56 @@ export class ContactService {
           },
         });
 
+        const existingLead = await transaction.crmLead.findFirst({
+          where: {
+            email: {
+              equals: email,
+              mode: 'insensitive',
+            },
+          },
+          select: { id: true },
+        });
+
+        if (!existingLead) {
+          const [initialStatus, creator] = await Promise.all([
+            transaction.crmLeadStatus.findUnique({
+              where: { code: 'NEW' },
+              select: { id: true, isActive: true },
+            }),
+            transaction.user.findUnique({
+              where: {
+                id: this.config.getOrThrow<string>(
+                  'CRM_CONTACT_CREATOR_USER_ID',
+                ),
+              },
+              select: { id: true, isActive: true },
+            }),
+          ]);
+
+          if (!initialStatus?.isActive) {
+            throw new ServiceUnavailableException(
+              'El estado inicial del CRM no está disponible',
+            );
+          }
+
+          if (!creator?.isActive) {
+            throw new ServiceUnavailableException(
+              'El usuario creador de prospectos no está disponible',
+            );
+          }
+
+          await transaction.crmLead.create({
+            data: {
+              company: dto.companyOrProject?.trim() || dto.name,
+              contactName: dto.name,
+              phone: dto.phone?.trim() || null,
+              email,
+              statusId: initialStatus.id,
+              createdById: creator.id,
+            },
+          });
+        }
+
         return { contact, projectStage, developmentOptions };
       });
 
@@ -495,7 +554,7 @@ export class ContactService {
         locale,
         name: dto.name,
         companyOrProject: dto.companyOrProject?.trim() || null,
-        email: dto.email.toLowerCase(),
+        email,
         phone: dto.phone?.trim() || null,
         projectStage: projectStage.translations[0]?.name ?? projectStage.code,
         developmentOptions: developmentOptions.map(

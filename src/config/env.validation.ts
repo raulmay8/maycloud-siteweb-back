@@ -23,6 +23,7 @@ export const envValidationSchema = Joi.object({
     .min(1)
     .max(90)
     .default(30),
+  CRM_CONTACT_CREATOR_USER_ID: Joi.string().uuid().required(),
   TURNSTILE_ENABLED: Joi.boolean().default(false),
   TURNSTILE_SECRET_KEY: Joi.string().allow('').when('TURNSTILE_ENABLED', {
     is: true,

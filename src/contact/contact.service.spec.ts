@@ -5,6 +5,7 @@ import { TurnstileService } from './turnstile.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { ContactMessageStatus } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('ContactService', () => {
   let service: ContactService;
@@ -23,6 +24,11 @@ describe('ContactService', () => {
   const emitContactMessageCreated = jest.fn();
   const emitContactNotificationUpdated = jest.fn();
   const sendContactEmails = jest.fn();
+  const queryRaw = jest.fn();
+  const findLead = jest.fn();
+  const createLead = jest.fn();
+  const findLeadStatus = jest.fn();
+  const findCreator = jest.fn();
 
   beforeEach(async () => {
     jest.resetAllMocks();
@@ -34,6 +40,11 @@ describe('ContactService', () => {
     findOptions.mockResolvedValue([
       { id: 'option-id', code: 'WEB', translations: [{ name: 'Sitio web' }] },
     ]);
+    queryRaw.mockResolvedValue([]);
+    findLead.mockResolvedValue(null);
+    createLead.mockResolvedValue({ id: 'lead-id' });
+    findLeadStatus.mockResolvedValue({ id: 'new-status-id', isActive: true });
+    findCreator.mockResolvedValue({ id: 'creator-id', isActive: true });
     sendContactEmails.mockResolvedValue(undefined);
     findStages.mockResolvedValue([]);
     findDefaultLanguage.mockResolvedValue({
@@ -47,6 +58,10 @@ describe('ContactService', () => {
       projectStage: { findFirst: findStage, findMany: findStages },
       developmentOption: { findMany: findOptions },
       language: { findFirst: findDefaultLanguage, findUnique: findLanguage },
+      crmLead: { findFirst: findLead, create: createLead },
+      crmLeadStatus: { findUnique: findLeadStatus },
+      user: { findUnique: findCreator },
+      $queryRaw: queryRaw,
     };
     transaction.mockImplementation(
       async (
@@ -69,6 +84,12 @@ describe('ContactService', () => {
           },
         },
         { provide: TurnstileService, useValue: { verify } },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockReturnValue('creator-id'),
+          },
+        },
         {
           provide: NotificationsGateway,
           useValue: {
@@ -195,6 +216,16 @@ describe('ContactService', () => {
       },
       select: { id: true, createdAt: true },
     });
+    expect(createLead).toHaveBeenCalledWith({
+      data: {
+        company: 'Nuevo proyecto',
+        contactName: 'María López',
+        phone: null,
+        email: 'maria@empresa.com',
+        statusId: 'new-status-id',
+        createdById: 'creator-id',
+      },
+    });
     expect(emitContactMessageCreated).toHaveBeenCalledWith({
       id: 'contact-id',
       createdAt: '2026-08-19T15:00:00.000Z',
@@ -211,6 +242,27 @@ describe('ContactService', () => {
       message: 'Quiero conversar sobre un proyecto.',
       createdAt,
     });
+  });
+
+  it('does not create another prospect when the email already exists', async () => {
+    create.mockResolvedValue({ id: 'contact-id', createdAt: new Date() });
+    findLead.mockResolvedValue({ id: 'existing-lead-id' });
+
+    await service.create({
+      name: 'Cliente',
+      email: 'CLIENTE@EXAMPLE.COM',
+      projectStageId: 'stage-id',
+      developmentOptionIds: ['option-id'],
+      message: 'Quiero conversar sobre un proyecto.',
+    });
+
+    expect(findLead).toHaveBeenCalledWith({
+      where: {
+        email: { equals: 'cliente@example.com', mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+    expect(createLead).not.toHaveBeenCalled();
   });
 
   it('silently discards submissions that fill the honeypot', async () => {
