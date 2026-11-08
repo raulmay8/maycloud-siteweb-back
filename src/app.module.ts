@@ -16,6 +16,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ServerModule } from './server/server.module';
 import { CrmModule } from './crm/crm.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { CrmModule } from './crm/crm.module';
     AnalyticsModule,
     ServerModule,
     CrmModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

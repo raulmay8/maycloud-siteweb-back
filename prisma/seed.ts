@@ -51,6 +51,8 @@ async function main(): Promise<void> {
     ['crm.activities.create', 'Registrar actividades con prospectos'],
     ['crm.emails.send', 'Previsualizar y enviar correos a prospectos'],
 
+    ['dashboard.crm.read', 'Consultar el dashboard comercial del CRM'],
+
     ['contact_messages.read', 'Consultar mensajes de contacto'],
     ['contact_messages.update', 'Marcar mensajes de contacto como leídos'],
 
@@ -156,6 +158,34 @@ async function main(): Promise<void> {
       icon: 'settings',
       sortOrder: 100,
       isActive: true,
+    },
+  });
+
+  const dashboardPermissionId = permissions.get('dashboard.crm.read');
+
+  if (!dashboardPermissionId) {
+    throw new Error('No fue posible crear el permiso del dashboard comercial');
+  }
+
+  await prisma.menu.upsert({
+    where: { key: 'dashboard' },
+    update: {
+      label: 'Dashboard',
+      route: '/admin/dashboard',
+      icon: 'layout-dashboard',
+      sortOrder: 10,
+      isActive: true,
+      parentId: null,
+      permissionId: dashboardPermissionId,
+    },
+    create: {
+      key: 'dashboard',
+      label: 'Dashboard',
+      route: '/admin/dashboard',
+      icon: 'layout-dashboard',
+      sortOrder: 10,
+      isActive: true,
+      permissionId: dashboardPermissionId,
     },
   });
 
