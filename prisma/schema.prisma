@@ -52,6 +52,12 @@ enum CrmOfferingPriority {
   HIGH
 }
 
+enum PartnerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
 /// Representa una visita al sitio. El id numérico se usa únicamente para
 /// relaciones internas; sessionToken es el identificador seguro que podrá
 /// almacenarse en la cookie y recibirse desde el cliente.
@@ -297,6 +303,24 @@ model CrmServiceOffering {
   @@map("crm_service_offerings")
 }
 
+
+model Partner {
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String        @db.VarChar(120)
+  email     String        @unique @db.VarChar(255)
+  phone     String?       @db.VarChar(30)
+  country   String?       @db.VarChar(120)
+  status    PartnerStatus @default(ACTIVE)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  leads CrmLead[]
+
+  @@index([status, createdAt])
+  @@map("partners")
+}
+
+
 model CrmLead {
   id             String   @id @default(uuid()) @db.Uuid
   company        String   @db.VarChar(160)
@@ -310,6 +334,7 @@ model CrmLead {
   businessTypeId String?  @map("business_type_id") @db.Uuid
   createdById    String   @map("created_by_id") @db.Uuid
   assignedToId   String?  @map("assigned_to_id") @db.Uuid
+  partnerId      String?  @map("partner_id") @db.Uuid
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -317,6 +342,7 @@ model CrmLead {
   businessType     CrmBusinessType?            @relation(fields: [businessTypeId], references: [id], onDelete: SetNull)
   createdBy        User                        @relation("CrmLeadCreator", fields: [createdById], references: [id], onDelete: Restrict)
   assignedTo       User?                       @relation("CrmLeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  partner          Partner?                    @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   categories       CrmLeadCategoryAssignment[]
   digitalAssets    CrmLeadDigitalAsset[]
   serviceOfferings CrmLeadServiceOffering[]
@@ -328,6 +354,7 @@ model CrmLead {
   @@index([statusId, updatedAt])
   @@index([businessTypeId])
   @@index([assignedToId])
+  @@index([partnerId])
   @@index([company])
   @@index([email])
   @@map("crm_leads")

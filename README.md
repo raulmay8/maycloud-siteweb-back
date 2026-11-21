@@ -109,14 +109,15 @@ La lista completa y valores de referencia están en [.env.example](.env.example)
 
 ### Aplicación
 
-| Variable               | Descripción                                    |
-| ---------------------- | ---------------------------------------------- |
-| `NODE_ENV`             | Entorno: `development`, `test` o `production`. |
-| `PORT`                 | Puerto HTTP del backend.                       |
-| `API_PREFIX`           | Prefijo global de la API.                      |
-| `FRONTEND_URL`         | URL principal del frontend.                    |
-| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos, separados por comas.      |
-| `SWAGGER_ENABLED`      | Habilita la documentación Swagger.             |
+| Variable               | Descripción                                                                                                                                                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`             | Entorno: `development`, `test` o `production`.                                                                                                                                                                                  |
+| `PORT`                 | Puerto HTTP del backend.                                                                                                                                                                                                        |
+| `API_PREFIX`           | Prefijo global de la API.                                                                                                                                                                                                       |
+| `TRUST_PROXY`          | Proxy o subred de confianza para resolver la IP real del cliente. Déjalo vacío si la API recibe tráfico directo. Para Nginx en el mismo host usa `loopback`; en Docker indica la subred del proxy, por ejemplo `172.18.0.0/16`. |
+| `FRONTEND_URL`         | URL principal del frontend.                                                                                                                                                                                                     |
+| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos, separados por comas.                                                                                                                                                                                       |
+| `SWAGGER_ENABLED`      | Habilita la documentación Swagger.                                                                                                                                                                                              |
 
 ### Base de datos y seguridad
 

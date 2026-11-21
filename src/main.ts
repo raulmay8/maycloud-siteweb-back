@@ -1,14 +1,21 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
+  const trustedProxies = config.get<string>('TRUST_PROXY')?.trim();
+
+  if (trustedProxies) {
+    app.set('trust proxy', trustedProxies);
+  }
+
   const allowedOrigins = (
     config.get<string>('CORS_ALLOWED_ORIGINS') ??
     config.getOrThrow<string>('FRONTEND_URL')
