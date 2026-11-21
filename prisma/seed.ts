@@ -53,6 +53,11 @@ async function main(): Promise<void> {
 
     ['dashboard.crm.read', 'Consultar el dashboard comercial del CRM'],
 
+    ['partners.read', 'Consultar socios'],
+    ['partners.create', 'Crear socios'],
+    ['partners.update', 'Actualizar socios'],
+    ['partners.status.update', 'Actualizar el estado de los socios'],
+
     ['contact_messages.read', 'Consultar mensajes de contacto'],
     ['contact_messages.update', 'Marcar mensajes de contacto como leídos'],
 
@@ -243,6 +248,8 @@ async function main(): Promise<void> {
     ['roles', 'Roles', '/admin/roles', 'shield', 20, 'roles.read'],
 
     ['menus', 'Menús', '/admin/menus', 'menu', 30, 'menus.read'],
+
+    ['partners', 'Socios', '/admin/partners', 'handshake', 40, 'partners.read'],
 
     [
       'contact-messages',

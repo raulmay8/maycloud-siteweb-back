@@ -17,6 +17,7 @@ import { AppService } from './app.service';
 import { ServerModule } from './server/server.module';
 import { CrmModule } from './crm/crm.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { PartnersModule } from './partners/partners.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ServerModule,
     CrmModule,
     DashboardModule,
+    PartnersModule,
   ],
   controllers: [AppController],
   providers: [
