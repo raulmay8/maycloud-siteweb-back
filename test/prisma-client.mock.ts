@@ -17,3 +17,9 @@ export const ContactMessageStatus = {
   READ: 'READ',
   ARCHIVED: 'ARCHIVED',
 } as const;
+
+export const PartnerStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  BLOCKED: 'BLOCKED',
+} as const;

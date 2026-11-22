@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../database/prisma.service';
 import { ContactService } from './contact.service';
-import { TurnstileService } from './turnstile.service';
+import { TurnstileService } from '../common/security/turnstile.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { ContactMessageStatus } from '../generated/prisma/client';
 import { MailService } from '../mail/mail.service';
@@ -87,7 +87,9 @@ describe('ContactService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn().mockReturnValue('creator-id'),
+            getOrThrow: jest.fn((key: string) =>
+              key === 'TURNSTILE_CONTACT_ACTION' ? 'contact' : 'creator-id',
+            ),
           },
         },
         {
@@ -203,7 +205,11 @@ describe('ContactService', () => {
         '127.0.0.1',
       ),
     ).resolves.toEqual({ reference: 'contact-id' });
-    expect(verify).toHaveBeenCalledWith('token', '127.0.0.1');
+    expect(verify).toHaveBeenCalledWith({
+      token: 'token',
+      remoteIp: '127.0.0.1',
+      expectedAction: 'contact',
+    });
     expect(create).toHaveBeenCalledWith({
       data: {
         name: 'María López',

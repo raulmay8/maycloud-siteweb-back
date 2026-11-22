@@ -133,7 +133,7 @@ La lista completa y valores de referencia están en [.env.example](.env.example)
 
 | Grupo                 | Variables principales                                                                                                                           |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Turnstile             | `TURNSTILE_ENABLED`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_EXPECTED_HOSTNAME`, `TURNSTILE_EXPECTED_ACTION`                                         |
+| Turnstile             | `TURNSTILE_ENABLED`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_EXPECTED_HOSTNAME`, `TURNSTILE_CONTACT_ACTION`, `TURNSTILE_PARTNER_REGISTER_ACTION`     |
 | Correo                | `MAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `MAIL_CONTACT_TO` |
 | Servidor              | `SERVER_HOST_ROOT`, `DOCKER_SOCKET_PATH`, `SERVER_DIRECTORIES_ROOT`, `SERVER_DIRECTORIES_NAME`                                                  |
 | Administrador inicial | `ADMIN_EMAIL`, `ADMIN_PASSWORD`                                                                                                                 |

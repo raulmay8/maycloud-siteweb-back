@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '../database/prisma.service';
+import { TurnstileService } from '../common/security/turnstile.service';
 import { ContactMessageStatus } from '../generated/prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { MailService } from '../mail/mail.service';
@@ -17,7 +18,6 @@ import type { ContactCatalogQueryDto } from './dto/contact-catalog-query.dto';
 import type { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import type { ListContactMessagesQueryDto } from './dto/list-contact-messages-query.dto';
 import type { ReadableContactMessageStatus } from './dto/update-contact-message-status.dto';
-import { TurnstileService } from './turnstile.service';
 
 @Injectable()
 export class ContactService {
@@ -390,7 +390,13 @@ export class ContactService {
      * La verificación externa se realiza antes de abrir una transacción
      * contra PostgreSQL.
      */
-    await this.turnstile.verify(dto.turnstileToken, remoteIp);
+    await this.turnstile.verify({
+      token: dto.turnstileToken,
+      remoteIp,
+      expectedAction: this.config.getOrThrow<string>(
+        'TURNSTILE_CONTACT_ACTION',
+      ),
+    });
 
     const { contact, projectStage, developmentOptions } =
       await this.prisma.$transaction(async (transaction) => {

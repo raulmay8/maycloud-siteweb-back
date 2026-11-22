@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 
 import {
@@ -15,11 +16,15 @@ import {
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 
+import { Public } from '../common/auth/public.decorator';
 import { RequirePermissions } from '../common/auth/permissions.decorator';
 import { ResponseMessage } from '../common/responses/response-message.decorator';
 
 import { PartnersService } from './partners.service';
+import { PartnersPublicService } from './partners-public.service';
 
 import {
   CreatePartnerDto,
@@ -27,12 +32,31 @@ import {
   UpdatePartnerDto,
   UpdatePartnerStatusDto,
 } from './dto/partner.dto';
+import { RegisterPartnerDto } from './dto/register-partner.dto';
 
 @ApiTags('Partners')
 @ApiBearerAuth()
 @Controller('partners')
 export class PartnersController {
-  constructor(private readonly partners: PartnersService) {}
+  constructor(
+    private readonly partners: PartnersService,
+    private readonly partnersPublic: PartnersPublicService,
+  ) {}
+
+  // =========================================================
+  // PUBLIC PARTNER REGISTRATION AND REFERRAL
+  // =========================================================
+
+  @Public()
+  @Post('register')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @ResponseMessage('Recibimos correctamente tu recomendación')
+  @ApiCreatedResponse({
+    description: 'Registro y recomendación recibidos correctamente',
+  })
+  register(@Body() dto: RegisterPartnerDto, @Req() request: Request) {
+    return this.partnersPublic.register(dto, request.ip);
+  }
 
   // =========================================================
   // LIST PARTNERS

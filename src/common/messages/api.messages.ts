@@ -8,6 +8,11 @@ export const ApiMessages = {
     verificationUnavailable:
       'No fue posible validar la solicitud en este momento. Inténtalo más tarde.',
   },
+  publicForms: {
+    botRejected: 'No fue posible validar la solicitud. Inténtalo nuevamente.',
+    verificationUnavailable:
+      'No fue posible validar la solicitud en este momento. Inténtalo más tarde.',
+  },
   analytics: {
     sessionReady: 'Sesión de analítica preparada correctamente.',
     interactionRecorded: 'Interacción registrada correctamente.',

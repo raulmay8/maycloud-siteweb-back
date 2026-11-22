@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
-import { ApiMessages } from '../common/messages/api.messages';
+
+import { ApiMessages } from '../messages/api.messages';
 
 interface TurnstileResponse {
   success: boolean;
@@ -14,22 +15,32 @@ interface TurnstileResponse {
   'error-codes'?: string[];
 }
 
+interface VerifyTurnstileOptions {
+  token?: string;
+  remoteIp?: string;
+  expectedAction: string;
+}
+
 @Injectable()
 export class TurnstileService {
   constructor(private readonly config: ConfigService) {}
 
-  async verify(token: string | undefined, remoteIp?: string): Promise<void> {
+  async verify(options: VerifyTurnstileOptions): Promise<void> {
     if (!this.config.get<boolean>('TURNSTILE_ENABLED')) return;
-    if (!token) throw new BadRequestException(ApiMessages.contact.botRejected);
+    if (!options.token) {
+      throw new BadRequestException(ApiMessages.publicForms.botRejected);
+    }
 
     const body = new URLSearchParams({
       secret: this.config.getOrThrow<string>('TURNSTILE_SECRET_KEY'),
-      response: token,
+      response: options.token,
       idempotency_key: randomUUID(),
     });
-    if (remoteIp) body.set('remoteip', remoteIp);
+
+    if (options.remoteIp) body.set('remoteip', options.remoteIp);
 
     let result: TurnstileResponse;
+
     try {
       const response = await fetch(
         'https://challenges.cloudflare.com/turnstile/v0/siteverify',
@@ -40,11 +51,12 @@ export class TurnstileService {
           signal: AbortSignal.timeout(8_000),
         },
       );
+
       if (!response.ok) throw new Error(`Turnstile HTTP ${response.status}`);
       result = (await response.json()) as TurnstileResponse;
     } catch {
       throw new ServiceUnavailableException(
-        ApiMessages.contact.verificationUnavailable,
+        ApiMessages.publicForms.verificationUnavailable,
       );
     }
 
@@ -54,16 +66,14 @@ export class TurnstileService {
       .split(',')
       .map((hostname) => hostname.trim())
       .filter(Boolean);
-    const expectedAction = this.config.getOrThrow<string>(
-      'TURNSTILE_EXPECTED_ACTION',
-    );
+
     if (
       !result.success ||
       (expectedHostnames.length > 0 &&
         (!result.hostname || !expectedHostnames.includes(result.hostname))) ||
-      result.action !== expectedAction
+      result.action !== options.expectedAction
     ) {
-      throw new BadRequestException(ApiMessages.contact.botRejected);
+      throw new BadRequestException(ApiMessages.publicForms.botRejected);
     }
   }
 }

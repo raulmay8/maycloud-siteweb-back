@@ -25,13 +25,15 @@ export const envValidationSchema = Joi.object({
     .max(90)
     .default(30),
   CRM_CONTACT_CREATOR_USER_ID: Joi.string().uuid().required(),
+  PARTNERS_PUBLIC_CREATOR_USER_ID: Joi.string().uuid().optional(),
   TURNSTILE_ENABLED: Joi.boolean().default(false),
   TURNSTILE_SECRET_KEY: Joi.string().allow('').when('TURNSTILE_ENABLED', {
     is: true,
     then: Joi.string().required(),
   }),
   TURNSTILE_EXPECTED_HOSTNAME: Joi.string().allow('').default(''),
-  TURNSTILE_EXPECTED_ACTION: Joi.string().default('contact'),
+  TURNSTILE_CONTACT_ACTION: Joi.string().default('contact'),
+  TURNSTILE_PARTNER_REGISTER_ACTION: Joi.string().default('partner_register'),
   MAIL_ENABLED: Joi.boolean().default(true),
   SMTP_HOST: Joi.when('MAIL_ENABLED', {
     is: true,

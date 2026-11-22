@@ -4,10 +4,18 @@ import { render } from '@react-email/render';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { createElement } from 'react';
 
-import type { ContactEmailData } from './mail.types';
+import type {
+  ContactEmailData,
+  PartnerRegistrationAdminEmailData,
+  PartnerRegistrationEmailData,
+} from './mail.types';
+
 import { ContactAdminEmail } from './templates/contact-admin.email';
 import { ContactCustomerEmail } from './templates/contact-customer.email';
 import { CrmEmailTemplate } from './templates/crm.email';
+
+import { PartnerRegistrationEmail } from './templates/partner-registration.email';
+import { PartnerRegistrationAdminEmail } from './templates/partner-registration-admin.email';
 
 @Injectable()
 export class MailService implements OnModuleInit {
@@ -31,6 +39,10 @@ export class MailService implements OnModuleInit {
       : null;
   }
 
+  // =========================================================
+  // INITIALIZE SMTP
+  // =========================================================
+
   async onModuleInit(): Promise<void> {
     if (!this.transporter) {
       this.logger.log('Email sending is disabled');
@@ -47,6 +59,10 @@ export class MailService implements OnModuleInit {
       );
     }
   }
+
+  // =========================================================
+  // CONTACT EMAILS
+  // =========================================================
 
   async sendContactEmails(data: ContactEmailData): Promise<void> {
     if (!this.transporter) {
@@ -79,45 +95,28 @@ export class MailService implements OnModuleInit {
     const [customerHtml, customerText, adminHtml, adminText] =
       await Promise.all([
         render(customerElement),
-
-        render(customerElement, {
-          plainText: true,
-        }),
-
+        render(customerElement, { plainText: true }),
         render(adminElement),
-
-        render(adminElement, {
-          plainText: true,
-        }),
+        render(adminElement, { plainText: true }),
       ]);
 
     const results = await Promise.allSettled([
-      // Correo de confirmación al cliente
       this.transporter.sendMail({
         from,
         to: data.email,
-
-        // Si el cliente responde, llegará a contacto@maycloud.mx
         replyTo: fromAddress,
-
         subject: customerSubject,
         html: customerHtml,
         text: customerText,
       }),
 
-      // Notificación interna
       this.transporter.sendMail({
         from,
-
-        // contacto@maycloud.mx + Gmail + Hotmail
         to: adminRecipients,
-
-        // Al responder, irá directamente al prospecto
         replyTo: {
           name: data.name,
           address: data.email,
         },
-
         subject: adminSubject,
         html: adminHtml,
         text: adminText,
@@ -140,6 +139,10 @@ export class MailService implements OnModuleInit {
     });
   }
 
+  // =========================================================
+  // CRM EMAIL RENDER
+  // =========================================================
+
   async renderCrmEmail(
     subject: string,
     content: string,
@@ -150,12 +153,18 @@ export class MailService implements OnModuleInit {
       content,
       locale,
     });
+
     const [html, text] = await Promise.all([
       render(element),
       render(element, { plainText: true }),
     ]);
+
     return { html, text };
   }
+
+  // =========================================================
+  // CRM EMAIL SEND
+  // =========================================================
 
   async sendCrmEmail(input: {
     recipient: string;
@@ -168,11 +177,13 @@ export class MailService implements OnModuleInit {
     }
 
     const fromAddress = this.config.getOrThrow<string>('MAIL_FROM_ADDRESS');
+
     const rendered = await this.renderCrmEmail(
       input.subject,
       input.content,
       input.locale,
     );
+
     const result = await this.transporter.sendMail({
       from: {
         name: this.config.getOrThrow<string>('MAIL_FROM_NAME'),
@@ -185,6 +196,97 @@ export class MailService implements OnModuleInit {
       text: rendered.text,
     });
 
-    return { messageId: result.messageId || null };
+    return {
+      messageId: result.messageId || null,
+    };
+  }
+
+  // =========================================================
+  // PARTNER REGISTRATION CONFIRMATION
+  // =========================================================
+
+  async sendPartnerRegistrationEmail(
+    data: PartnerRegistrationEmailData,
+  ): Promise<{ messageId: string | null }> {
+    if (!this.transporter) {
+      return { messageId: null };
+    }
+
+    const fromAddress = this.config.getOrThrow<string>('MAIL_FROM_ADDRESS');
+
+    const subject =
+      data.locale === 'en'
+        ? 'We received your referral | MayCloud'
+        : 'Hemos recibido su recomendación | MayCloud';
+
+    const element = createElement(PartnerRegistrationEmail, { data });
+
+    const [html, text] = await Promise.all([
+      render(element),
+      render(element, { plainText: true }),
+    ]);
+
+    const result = await this.transporter.sendMail({
+      from: {
+        name: this.config.getOrThrow<string>('MAIL_FROM_NAME'),
+        address: fromAddress,
+      },
+      to: data.partnerEmail,
+      replyTo: fromAddress,
+      subject,
+      html,
+      text,
+    });
+
+    return {
+      messageId: result.messageId || null,
+    };
+  }
+
+  // =========================================================
+  // PARTNER REGISTRATION ADMIN NOTIFICATION
+  // =========================================================
+
+  async sendPartnerRegistrationAdminEmail(
+    data: PartnerRegistrationAdminEmailData,
+  ): Promise<{ messageId: string | null }> {
+    if (!this.transporter) {
+      return { messageId: null };
+    }
+
+    const fromAddress = this.config.getOrThrow<string>('MAIL_FROM_ADDRESS');
+
+    const adminRecipients = this.config.getOrThrow<string>('MAIL_CONTACT_TO');
+
+    const subject =
+      data.locale === 'en'
+        ? `New partner referral: ${data.company} | MayCloud`
+        : `Nueva recomendación: ${data.company} | MayCloud`;
+
+    const element = createElement(PartnerRegistrationAdminEmail, { data });
+
+    const [html, text] = await Promise.all([
+      render(element),
+      render(element, { plainText: true }),
+    ]);
+
+    const result = await this.transporter.sendMail({
+      from: {
+        name: this.config.getOrThrow<string>('MAIL_FROM_NAME'),
+        address: fromAddress,
+      },
+      to: adminRecipients,
+      replyTo: {
+        name: data.partnerName,
+        address: data.partnerEmail,
+      },
+      subject,
+      html,
+      text,
+    });
+
+    return {
+      messageId: result.messageId || null,
+    };
   }
 }
