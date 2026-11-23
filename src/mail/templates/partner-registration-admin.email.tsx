@@ -26,10 +26,6 @@ export function PartnerRegistrationAdminEmail({
     [copy.contactName, data.contactName ?? copy.notProvided],
     [copy.contactEmail, data.contactEmail ?? copy.notProvided],
     [copy.contactPhone, data.contactPhone ?? copy.notProvided],
-    [
-      copy.services,
-      data.services.length > 0 ? data.services.join(', ') : copy.notProvided,
-    ],
   ];
 
   const partnerFields: Array<[string, string]> = [
@@ -114,7 +110,6 @@ const es = {
   contactName: 'Nombre del contacto',
   contactEmail: 'Correo del contacto',
   contactPhone: 'Teléfono del contacto',
-  services: 'Servicios solicitados',
   description: 'Descripción del proyecto',
 
   partnerDetails: 'Datos del socio',
@@ -148,7 +143,6 @@ const en = {
   contactName: 'Contact name',
   contactEmail: 'Contact email',
   contactPhone: 'Contact phone',
-  services: 'Requested services',
   description: 'Project description',
 
   partnerDetails: 'Partner details',

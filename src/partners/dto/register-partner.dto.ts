@@ -3,13 +3,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  IsArray,
   IsEmail,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength,
   ValidateNested,
@@ -102,17 +98,6 @@ export class PublicReferredClientDto {
   @IsString()
   @MaxLength(30)
   phone?: string;
-
-  @ApiProperty({
-    type: [String],
-    format: 'uuid',
-    description: 'Identificadores de los servicios solicitados',
-  })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(10)
-  @IsUUID('4', { each: true })
-  serviceOfferingIds!: string[];
 
   @ApiPropertyOptional({
     example: 'La empresa necesita un sistema de inventarios.',

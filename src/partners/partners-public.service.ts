@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -54,17 +53,11 @@ export class PartnersPublicService {
 
     const partnerEmail = this.normalizeEmail(dto.partner.email);
 
-    const serviceOfferingIds = [...new Set(dto.client.serviceOfferingIds)];
-
-    if (serviceOfferingIds.length !== dto.client.serviceOfferingIds.length) {
-      throw new BadRequestException('No se permiten servicios duplicados.');
-    }
-
     // =====================================================
     // VALIDATE REFERENCES
     // =====================================================
 
-    const [creator, initialStatus, offerings] = await Promise.all([
+    const [creator, initialStatus] = await Promise.all([
       this.prisma.user.findUnique({
         where: {
           id: creatorId,
@@ -84,19 +77,6 @@ export class PartnersPublicService {
           isActive: true,
         },
       }),
-
-      this.prisma.crmServiceOffering.findMany({
-        where: {
-          id: {
-            in: serviceOfferingIds,
-          },
-          isActive: true,
-        },
-        select: {
-          id: true,
-          name: true,
-        },
-      }),
     ]);
 
     if (!creator?.isActive || !initialStatus?.isActive) {
@@ -104,18 +84,6 @@ export class PartnersPublicService {
         'No fue posible configurar el registro de socios.',
       );
     }
-
-    if (offerings.length !== serviceOfferingIds.length) {
-      throw new BadRequestException(
-        'Uno o más servicios seleccionados no son válidos.',
-      );
-    }
-
-    const offeringNames = serviceOfferingIds.map((id) => {
-      const offering = offerings.find((item) => item.id === id);
-
-      return offering!.name;
-    });
 
     // =====================================================
     // DATABASE TRANSACTION
@@ -176,12 +144,6 @@ export class PartnersPublicService {
           createdById: creatorId,
           statusId: initialStatus.id,
 
-          serviceOfferings: {
-            create: serviceOfferingIds.map((serviceOfferingId) => ({
-              serviceOfferingId,
-            })),
-          },
-
           notes: {
             create: {
               content: noteContent,
@@ -227,7 +189,6 @@ export class PartnersPublicService {
         partnerName: partner.name,
         partnerEmail: partner.email,
         company: dto.client.company.trim(),
-        services: offeringNames,
         createdAt,
       }),
 
@@ -246,7 +207,6 @@ export class PartnersPublicService {
         contactEmail: dto.client.email?.trim().toLowerCase() || null,
         contactPhone: dto.client.phone?.trim() || null,
 
-        services: offeringNames,
         description: dto.client.description?.trim() || null,
       }),
     ]);

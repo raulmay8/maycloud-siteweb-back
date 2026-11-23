@@ -18,7 +18,6 @@ export interface PartnerRegistrationEmailData {
   partnerName: string;
   partnerEmail: string;
   company: string;
-  services: string[];
   createdAt: Date;
 }
 
@@ -39,6 +38,5 @@ export interface PartnerRegistrationAdminEmailData {
   contactPhone: string | null;
 
   // Datos relacionados con el prospecto
-  services: string[];
   description: string | null;
 }
